@@ -151,55 +151,32 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         scorer = check_scoring(self.estimator, scoring=self.scoring)
         n_features = X.shape[1]
 
-        # Initial values to calculate "right" in the first iteration
-        # and a proper mid in subsequent iterations
-        left = 0
-        right = n_features
-        mid = n_features // 2
-        scores = {}
-        mean_scores = {}
-        rankings = {}
+        # Initial values
+        lower = 0
+        upper = n_features
+        self.grid_scores_ = dict()
+        self.mean_scores_ = dict()
+        self.mean_scores_[0] = float("-inf")
+        self.mean_scores_[n_features + 2] = float("-inf")
+        self.rankings_ = dict()
+        self.rankings_[0] = [[]]
+        self.rankings_[n_features] = [np.arange(n_features)]
 
-        if self.n_jobs == 1:
-            parallel, func = list, _single_fit
-        else:
-            parallel, func, = Parallel(n_jobs=self.n_jobs), \
-                              delayed(_single_fit)
-        mid_scores_and_ranks = parallel(func(self, np.arange(n_features),
-                                             X, y, train, test, scorer)
-                                        for train, test in cv.split(X, y))
-        scores[right], rankings[right] = map(list, zip(*mid_scores_and_ranks))
-        mean_scores[right] = np.mean(scores[right], axis=0)
+        while upper - lower > 1:
+            mid = (upper + lower) // 2
+            d_upper = self._discrete_derivative(upper, upper, cv, X, y, scorer)
+            d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
 
-        while right != mid and left != mid:
-            features = self._get_top_k_features(rankings[right], mid)
-
-            if self.n_jobs == 1:
-                parallel, func = list, _single_fit
+            # update interval
+            if d_upper * d_mid < 0:
+                lower = mid
             else:
-                parallel, func, = Parallel(n_jobs=self.n_jobs), \
-                                  delayed(_single_fit)
-
-            mid_scores_and_ranks = parallel(func(self, features, X, y, train,
-                                                 test, scorer)
-                                            for train, test in cv.split(X, y))
-            scores[mid], rankings[mid] = map(list, zip(*mid_scores_and_ranks))
-            mean_scores[mid] = np.mean(scores[mid], axis=0)
-
-            if self.verbose > 1:
-                print("%d feature score: %.3f, %d feature score: %.3f" %
-                      (mid, mean_scores[mid], right, mean_scores[right]))
-
-            # update boundaries and reference objects
-            if mean_scores[mid] >= mean_scores[right]: #
-                right = mid
-            else:
-                left = mid
-            mid = (right + left) // 2
+                upper = mid
 
         # Set final attributes
-        # todo right niekoniecznie?
-        features = self._get_top_k_features(rankings[right], right)
+        features = self._get_top_k_features(self.rankings_[upper],
+                                            max(self.mean_scores_,
+                                                key=self.mean_scores_.get))
         self.estimator_ = clone(self.estimator)
         self.estimator_.fit(X[:, features], y)
 
@@ -209,12 +186,38 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         self.ranking_ = np.ones(n_features, dtype=np.int)
         self.ranking_[np.logical_not(self.support_)] += 1
 
-        self.grid_scores_ = scores
-
         if self.verbose > 0:
             print("Final number of features: %d." % self.n_features_)
 
         return self
+
+    def _discrete_derivative(self, mid, upper, cv, X, y, scorer):
+        if mid not in self.mean_scores_:
+            features = self._get_top_k_features(self.rankings_[upper], mid)
+            self.grid_scores_[mid], self.rankings_[mid], self.mean_scores_[
+                mid] = self._get_cv_results(features, cv, X, y, scorer)
+
+        if mid+2 not in self.mean_scores_:
+            features = self._get_top_k_features(self.rankings_[upper], mid+2)
+            self.grid_scores_[mid+2], self.rankings_[mid+2], self.mean_scores_[
+                mid+2] = self._get_cv_results(features, cv, X, y, scorer)
+
+        return self.mean_scores_[mid + 2] - self.mean_scores_[mid]
+
+    def _get_cv_results(self, features, cv, X, y, scorer):
+        if self.n_jobs == 1:
+            parallel, func = list, _single_fit
+        else:
+            parallel, func, = Parallel(n_jobs=self.n_jobs), \
+                              delayed(_single_fit)
+
+        mid_scores_and_ranks = parallel(func(self, features, X, y, train,
+                                             test, scorer)
+                                        for train, test in cv.split(X, y))
+        cv_scores, cv_ranks = map(list, zip(*mid_scores_and_ranks))
+        mean_cv_score = np.mean(cv_scores, axis=0)
+
+        return cv_scores, cv_ranks, mean_cv_score
 
     def _fit_rank_test(self, features, X_train, y_train, X_test, y_test,
                        scorer):
