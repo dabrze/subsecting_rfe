@@ -1,1 +1,1 @@
-# BisectingRFE
+# Bisecting Recursive Feature Elimination
