@@ -113,21 +113,16 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     >>> estimator = SVR(kernel="linear")
     >>> selector = BisectingRFE(estimator, cv=5)
     >>> selector = selector.fit(X, y)
-    >>> selector.support_ # doctest: +NORMALIZE_WHITESPACE
+    >>> selector.support_
     array([ True,  True,  True,  True,  True,
             False, False, False, False, False], dtype=bool)
     >>> selector.ranking_
     array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
-
-    References
-    ----------
-
-    .. [1] Guyon, I., Weston, J., Barnhill, S., & Vapnik, V., "Gene selection
-           for cancer classification using support vector machines",
-           Mach. Learn., 46(1-3), 389--422, 2002.
     """
-    def __init__(self, estimator, cv=None, scoring=None, verbose=0, n_jobs=1):
+    def __init__(self, estimator, use_derivative=False, cv=None, scoring=None,
+                 verbose=0, n_jobs=1):
         self.estimator = estimator
+        self.use_derivative = use_derivative
         self.cv = cv
         self.scoring = scoring
         self.verbose = verbose
@@ -153,25 +148,38 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
         # Initial values
         lower = 0
-        upper = n_features
+        mid = upper = n_features
         self.grid_scores_ = dict()
         self.mean_scores_ = dict()
         self.mean_scores_[0] = float("-inf")
-        self.mean_scores_[n_features + 2] = float("-inf")
+        self.mean_scores_[n_features + 1] = float("-inf")
         self.rankings_ = dict()
         self.rankings_[0] = [[]]
         self.rankings_[n_features] = [np.arange(n_features)]
 
-        while upper - lower > 1:
-            mid = (upper + lower) // 2
-            d_upper = self._discrete_derivative(upper, upper, cv, X, y, scorer)
-            d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
+        if self.use_derivative:
+            while upper - lower > 1:
+                mid = (upper + lower) // 2
+                d_upper = self._discrete_derivative(upper, upper, cv, X, y, scorer)
+                d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
 
-            # update interval
-            if d_upper * d_mid < 0:
-                lower = mid
-            else:
-                upper = mid
+                # update interval
+                if d_upper * d_mid < 0:
+                    lower = mid
+                else:
+                    upper = mid
+        else:
+            while upper - lower > 1:
+                features = self._get_top_k_features(self.rankings_[upper], mid)
+                self.grid_scores_[mid], self.rankings_[mid], self.mean_scores_[
+                    mid] = self._get_cv_results(features, cv, X, y, scorer)
+
+                # update boundaries and reference objects
+                if self.mean_scores_[mid] < self.mean_scores_[upper]:
+                    lower = mid
+                else:
+                    upper = mid
+                mid = (upper + lower) // 2
 
         # Set final attributes
         features = self._get_top_k_features(self.rankings_[upper],
@@ -190,19 +198,6 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             print("Final number of features: %d." % self.n_features_)
 
         return self
-
-    def _discrete_derivative(self, mid, upper, cv, X, y, scorer):
-        if mid not in self.mean_scores_:
-            features = self._get_top_k_features(self.rankings_[upper], mid)
-            self.grid_scores_[mid], self.rankings_[mid], self.mean_scores_[
-                mid] = self._get_cv_results(features, cv, X, y, scorer)
-
-        if mid+2 not in self.mean_scores_:
-            features = self._get_top_k_features(self.rankings_[upper], mid+2)
-            self.grid_scores_[mid+2], self.rankings_[mid+2], self.mean_scores_[
-                mid+2] = self._get_cv_results(features, cv, X, y, scorer)
-
-        return self.mean_scores_[mid + 2] - self.mean_scores_[mid]
 
     def _get_cv_results(self, features, cv, X, y, scorer):
         if self.n_jobs == 1:
@@ -276,6 +271,19 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 result.append(feature)
 
             return np.asarray(result[-k:])
+
+    def _discrete_derivative(self, mid, upper, cv, X, y, scorer):
+        if mid not in self.mean_scores_:
+            features = self._get_top_k_features(self.rankings_[upper], mid)
+            self.grid_scores_[mid], self.rankings_[mid], self.mean_scores_[
+                mid] = self._get_cv_results(features, cv, X, y, scorer)
+
+        if mid+1 not in self.mean_scores_:
+            features = self._get_top_k_features(self.rankings_[upper], mid+1)
+            self.grid_scores_[mid+1], self.rankings_[mid+1], self.mean_scores_[
+                mid+1] = self._get_cv_results(features, cv, X, y, scorer)
+
+        return self.mean_scores_[mid+1] - self.mean_scores_[mid]
 
     @if_delegate_has_method(delegate='estimator')
     def predict(self, X):
