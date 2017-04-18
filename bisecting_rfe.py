@@ -31,6 +31,7 @@ def _single_fit(brfe, features, X, y, train, test, scorer):
     return brfe._fit_rank_test(features, X_train, y_train, X_test, y_test,
                                scorer)
 
+
 class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     """Feature selection with bisecting recursive feature elimination.
 
@@ -160,11 +161,13 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         self.rankings_ = dict()
         self.mean_rankings_ = dict()
         self.mean_rankings_[n_features] = list(range(n_features))
+        self.mean_rankings_[n_features+1] = list(range(n_features))
 
         if self.use_derivative:
             while upper - lower > 1:
                 mid = (upper + lower) // 2
-                d_upper = self._discrete_derivative(upper, upper, cv, X, y, scorer)
+                d_upper = self._discrete_derivative(upper, upper, cv, X, y,
+                                                    scorer)
                 d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
 
                 # update interval
@@ -179,7 +182,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 self.mean_scores_[mid], self.mean_rankings_[mid]\
                     = self._get_cv_results(features, cv, X, y, scorer)
 
-                # update boundaries and reference objects
+                # update interval
                 if self.mean_scores_[mid] < self.mean_scores_[upper]:
                     lower = mid
                 else:
@@ -282,17 +285,19 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         return np.asarray(ranks[-k:])
 
     def _discrete_derivative(self, mid, upper, cv, X, y, scorer):
-        if mid not in self.mean_scores_:
-            features = self._top_features(self.mean_rankings_[upper], mid)
-            self.grid_scores_[mid], self.rankings_[mid],\
-            self.mean_scores_[mid], self.mean_rankings_[mid] = \
-                self._get_cv_results(features, cv, X, y, scorer)
-
         if mid+1 not in self.mean_scores_:
             features = self._top_features(self.mean_rankings_[upper], mid+1)
             self.grid_scores_[mid+1], self.rankings_[mid+1], \
             self.mean_scores_[mid+1], self.mean_rankings_[mid+1] = \
                 self._get_cv_results(features, cv, X, y, scorer)
+
+        if mid not in self.mean_scores_:
+            features = self._top_features(self.mean_rankings_[mid+1], mid)
+            self.grid_scores_[mid], self.rankings_[mid],\
+            self.mean_scores_[mid], self.mean_rankings_[mid] = \
+                self._get_cv_results(features, cv, X, y, scorer)
+
+
 
         return self.mean_scores_[mid+1] - self.mean_scores_[mid]
 
