@@ -4,6 +4,7 @@
 
 import os
 import csv
+import math
 import time
 import logging
 import numpy as np
@@ -12,11 +13,12 @@ import scipy as sp
 
 from sklearn import metrics
 from sklearn.base import clone
+from sklearn.externals.joblib import Parallel, delayed
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.fixes import bincount
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics.classification import _prf_divide
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import StratifiedKFold
 
 
@@ -24,28 +26,25 @@ class Evaluation:
     """
     Evaluation results for a given classifier on a given dataset.
     """
-    def __init__(self, dataset_name, X, y, fold, classifier, processing_time,
-                 selected_feature_num, y_true, y_pred_all, y_pred_sel):
+    def __init__(self, dataset_name, selector_name, X, y, classifier,
+                 selector, scorer, processing_time, selected_feature_num,
+                 y_true, y_pred):
         self.dataset_name = dataset_name
-        self.fold = fold
         self.dataset_stats = DatasetStatistics(X, y)
+        self.selector_name = selector_name
         self.classifier = classifier
-        self.all_feature_num = self.dataset_stats.attributes
+        self.selector = selector
+        self.scorer = scorer
+        self.feature_num = self.dataset_stats.attributes
         self.selected_feature_num = selected_feature_num
         self.y_true = y_true
-        self.y_pred_all = y_pred_all
-        self.y_pred_sel = y_pred_sel
+        self.y_pred = y_pred
         self.processing_time = processing_time
-        self.accuracy_all = metrics.accuracy_score(y_true, y_pred_all)
-        self.macro_recall_all = metrics.recall_score(y_true, y_pred_all,
-                                                     average="macro")
-        self.kappa_all = metrics.cohen_kappa_score(y_true, y_pred_all)
-        self.gmean_all = g_mean(y_true, y_pred_all)
-        self.accuracy_sel = metrics.accuracy_score(y_true, y_pred_sel)
-        self.macro_recall_sel = metrics.recall_score(y_true, y_pred_sel,
-                                                     average="macro")
-        self.kappa_sel = metrics.cohen_kappa_score(y_true, y_pred_sel)
-        self.gmean_sel = g_mean(y_true, y_pred_sel)
+        self.accuracy = metrics.accuracy_score(y_true, y_pred)
+        self.macro_recall = metrics.recall_score(y_true, y_pred,
+                                                 average="macro")
+        self.kappa = metrics.cohen_kappa_score(y_true, y_pred)
+        self.gmean = g_mean(y_true, y_pred)
         self.num_of_classes = self.dataset_stats.num_of_classes
         self.start_date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()-processing_time))
 
@@ -83,18 +82,16 @@ class Evaluation:
                                  "Min class examples",
                                  "Max class examples",
                                  "Classifier",
-                                 "Fold",
+                                 "Feature selector",
+                                 "Selector params",
+                                 "Scorer",
                                  "Processing time",
                                  "Feature num",
-                                 "Accuracy (All)",
-                                 "Macro recall (All)",
-                                 "Kappa (All)",
-                                 "G-mean (All)",
-                                 "Selected feature num",
-                                 "Accuracy (Selected)",
-                                 "Macro recall (Selected)",
-                                 "Kappa (Selected)",
-                                 "G-mean (Selected)"
+                                 "Selected features",
+                                 "Accuracy",
+                                 "Macro recall",
+                                 "Kappa",
+                                 "G-mean"
                                  ])
 
             writer.writerow([self.start_date_time,
@@ -105,18 +102,16 @@ class Evaluation:
                              self.dataset_stats.min_examples,
                              self.dataset_stats.max_examples,
                              self.classifier,
-                             self.fold,
+                             self.selector_name,
+                             self.selector,
+                             self.scorer,
                              self.processing_time,
-                             self.all_feature_num,
-                             self.accuracy_all,
-                             self.macro_recall_all,
-                             self.kappa_all,
-                             self.gmean_all,
+                             self.feature_num,
                              self.selected_feature_num,
-                             self.accuracy_sel,
-                             self.macro_recall_sel,
-                             self.kappa_sel,
-                             self.gmean_sel
+                             self.accuracy,
+                             self.macro_recall,
+                             self.kappa,
+                             self.gmean
                              ])
 
 
@@ -154,31 +149,52 @@ class DatasetStatistics:
                                                  for key, value in self.classes.iteritems()])
                                        if self.classes.shape[0] <= 200 else str(self.classes.shape[0]))
 
-def evaluate(dataset, selector, classifier, scorer, X, y, seed, folds=10):
-    skf = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
-    fold = 0
-    for train_index, test_index in skf.split(X, y):
-        fold += 1
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
+             seed, folds=10, n_jobs=-1):
+    cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
-        clf = clone(classifier)
-        clf.fit(X_train, y_train)
-        y_true, y_pred_all = y_test, clf.predict(X_test)
+    evaluations = Parallel(n_jobs=n_jobs)(
+        delayed(_single_fit)(dataset, selector_name, selector, classifier,
+                             scorer, X, y, train, test)
+        for train, test in cv.split(X, y))
 
-        clf = clone(classifier)
-        start = time.time()
-        clf.fit(X_train, y_train)
-        training_time = time.time() - start
-        selected_feature_num = 10 #TODO
-        y_pred = y_pred_all #TODO
-
-        evaluation = Evaluation(dataset, X, y, fold, classifier, training_time,
-                                selected_feature_num, y_true, y_pred_all,
-                                y_pred)
+    for evaluation in evaluations:
         evaluation.write_to_csv()
 
+
+def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
+                train, test):
+    X_train, X_test = X[train], X[test]
+    y_train, y_test = y[train], y[test]
+
+    if selector is None:
+        clf = clone(classifier)
+    else:
+        scaler = StandardScaler()
+        sel = clone(selector)
+        sel.set_params(estimator=clone(classifier), scoring=scorer)
+        if "step" in sel.get_params():
+            if sel.get_params()["step"] == "log":
+                feature_num = X.shape[1]
+                log_steps = math.frexp(feature_num)[1]
+                step = feature_num // log_steps
+                sel.set_params(step=step)
+        clf = make_pipeline(scaler, sel)
+
+    start = time.time()
+    clf.fit(X_train, y_train)
+    training_time = time.time() - start
+    y_true, y_pred = y_test, clf.predict(X_test)
+
+    if selector is None:
+        selected_feature_num = None
+    else:
+        selected_feature_num = clf.steps[1][1].n_features_
+
+    return Evaluation(dataset, selector_name, X, y, classifier, selector,
+                      scorer, training_time, selected_feature_num, y_true,
+                      y_pred)
 
 def plot_comparison(file_name="ExperimentResults.csv",
                     save_to_folder=os.path.join(os.path.dirname(__file__),
