@@ -27,7 +27,7 @@ selectors = {"BRFE": BisectingRFE(None, use_derivative=False, cv=5, verbose=0,
                                    n_jobs=1),
              "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
              "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)}
-scorers = {"Kappa": make_scorer(cohen_kappa_score)}
+scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
                                                        n_jobs=-1,

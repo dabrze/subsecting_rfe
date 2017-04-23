@@ -7,6 +7,7 @@ import csv
 import math
 import time
 import logging
+
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -20,6 +21,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics.classification import _prf_divide
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import StratifiedKFold
+from multiprocessing.context import TimeoutError
 
 
 class Evaluation:
@@ -151,13 +153,19 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1):
+             seed, folds=10, n_jobs=-1, timeout=1*60*60):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
-    evaluations = Parallel(n_jobs=n_jobs)(
-        delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                             scorer, X, y, train, test)
-        for train, test in cv.split(X, y))
+    try:
+        evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
+            delayed(_single_fit)(dataset, selector_name, selector, classifier,
+                                 scorer, X, y, train, test)
+            for train, test in cv.split(X, y))
+    except TimeoutError:
+        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+                                selector, scorer, timeout, "timeout", [1], [0])
+        evaluations = [evaluation] * folds
+        logging.warning("%s interrupted after %d seconds")
 
     for evaluation in evaluations:
         evaluation.write_to_csv()
@@ -196,12 +204,14 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                       scorer, training_time, selected_feature_num, y_true,
                       y_pred)
 
+
 def plot_comparison(file_name="ExperimentResults.csv",
                     save_to_folder=os.path.join(os.path.dirname(__file__),
                                                  "results")):
     logging.info("Creating comparison plot")
 
-def g_mean(y_true, y_pred, labels=None, correction=0.001):
+
+def g_mean(y_true, y_pred, labels=None, correction=0.0):
     """
     Computes the geometric mean of class-wise recalls.
     :param y_true: True class labels.
