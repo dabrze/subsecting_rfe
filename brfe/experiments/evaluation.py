@@ -50,8 +50,8 @@ class Evaluation:
         self.start_date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()-processing_time))
 
     def write_to_csv(self, file_name="ExperimentResults.csv",
-                     save_to_folder=os.path.join(os.path.dirname(__file__),
-                                                 "results")):
+                     save_to_folder=os.path.join(os.path.abspath(
+                         os.path.dirname(__file__)), "results")):
         """
         Adds a new row to a csv file with evaluation results. If the given filenmae does not correspond to any existing
         csv, a new file is created.
@@ -60,9 +60,12 @@ class Evaluation:
         :param save_to_folder: folder to save the file to
         :type save_to_folder: string, optional (default=source file folder/ExperimentResults)
         """
+
         if not os.path.exists(save_to_folder):
+            logging.info("Creating folder: %s", save_to_folder)
             os.mkdir(save_to_folder)
         file_path = os.path.join(save_to_folder, file_name)
+        logging.info("Saving evalution to: %s", file_path)
 
         if os.path.isfile(file_path):
             write_header = False
