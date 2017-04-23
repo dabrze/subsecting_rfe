@@ -19,9 +19,8 @@ from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.fixes import bincount
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics.classification import _prf_divide
-from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import StratifiedKFold
-import multiprocessing
 
 
 class Evaluation:
@@ -153,7 +152,7 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=1*60*60):
+             seed, folds=10, n_jobs=-1, timeout=2*60*60):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
     try:
@@ -161,11 +160,11 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
                                  scorer, X, y, train, test)
             for train, test in cv.split(X, y))
-    except multiprocessing.context.TimeoutError:
+    except:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
                                 selector, scorer, timeout, "timeout", [1], [0])
         evaluations = [evaluation] * folds
-        logging.warning("%s interrupted after %d seconds")
+        logging.warning("%s probably interrupted after timeout %d seconds")
 
     for evaluation in evaluations:
         evaluation.write_to_csv()

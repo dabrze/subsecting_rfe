@@ -25,15 +25,16 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/")
 selectors = {"BRFE": BisectingRFE(None, use_derivative=False, cv=5, verbose=0,
                                   n_jobs=1),
              "d-BRFE": BisectingRFE(None, use_derivative=True, cv=5, verbose=0,
-                                   n_jobs=1),
+                                    n_jobs=1),
              "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
+             "RFE-10": RFECV(None, step=10, cv=5, verbose=0, n_jobs=1),
              "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)}
 scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
                                                        n_jobs=-1,
                                                        random_state=SEED),
-               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
+               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=500),
                "Logistic Regression": LogisticRegression(random_state=SEED,
                                                          n_jobs=-1)}
 

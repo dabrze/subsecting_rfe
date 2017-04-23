@@ -96,6 +96,6 @@ ENV/
 /.idea/vcs.xml
 /.idea/workspace.xml
 
-#Custom
-/articles/*
-/experiments/results
+# Custom
+/brfe/articles/*
+/brfe/experiments/results
