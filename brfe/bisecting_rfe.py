@@ -173,6 +173,11 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 # update interval
                 if d_upper * d_mid < 0:
                     lower = mid
+                elif d_upper * d_mid == 0:
+                    if self.mean_scores_[mid] < self.mean_scores_[upper]:
+                        lower = mid
+                    else:
+                        upper = mid
                 else:
                     upper = mid
         else:
@@ -190,9 +195,10 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 mid = (upper + lower) // 2
 
         # Set final attributes
-        features = self._top_features(self.mean_rankings_[upper],
-                                      max(self.mean_scores_,
-                                          key=self.mean_scores_.get))
+        k = lower \
+            if self.mean_scores_[lower] > self.mean_scores_[upper] \
+            else upper
+        features = self._top_features(self.mean_rankings_[upper], k)
         self.estimator_ = clone(self.estimator)
         self.estimator_.fit(X[:, features], y)
 
@@ -227,6 +233,9 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                                         for train, test in cv.split(X, y))
         cv_scores, cv_ranks = map(list, zip(*mid_scores_and_ranks))
         mean_cv_score = np.mean(cv_scores, axis=0)
+
+        if self.verbose > 1:
+            print("Mean cv-score:", mean_cv_score)
 
         summed_ranks = collections.defaultdict(lambda: 0)
         for ranking in cv_ranks:
