@@ -17,7 +17,7 @@ from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
 from brfe.bisecting_rfe import BisectingRFE
-from brfe.experiments.evaluation import evaluate, plot_comparison
+from evaluation import evaluate, plot_comparison
 
 SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/")

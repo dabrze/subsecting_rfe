@@ -16,8 +16,7 @@ setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     url=URL,
-    packages =['brfe', 'brfe.examples',
-               'brfe.experiments'],
+    packages =['brfe'],
     install_requires=["scikit-learn", "numpy", "scipy", "pandas", "seaborn",
                       "matplotlib"]
 )

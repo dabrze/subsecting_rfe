@@ -97,5 +97,5 @@ ENV/
 /.idea/workspace.xml
 
 # Custom
-/brfe/articles/*
 /brfe/experiments/results
+/brfe/articles

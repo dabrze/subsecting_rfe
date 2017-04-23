@@ -65,7 +65,6 @@ class Evaluation:
             logging.info("Creating folder: %s", save_to_folder)
             os.mkdir(save_to_folder)
         file_path = os.path.join(save_to_folder, file_name)
-        logging.info("Saving evalution to: %s", file_path)
 
         if os.path.isfile(file_path):
             write_header = False
