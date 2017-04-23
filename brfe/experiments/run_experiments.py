@@ -2,6 +2,7 @@
 # Authors: Dariusz Brzezinski <dariusz.brzezinski@cs.put.poznan.pl>
 # License: MIT
 
+import sys
 import os
 import scipy.io
 import logging
@@ -15,11 +16,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
-from bisecting_rfe import BisectingRFE
-from experiments.evaluation import evaluate, plot_comparison
+from brfe.bisecting_rfe import BisectingRFE
+from brfe.experiments.evaluation import evaluate, plot_comparison
 
 SEED = 23
-DATA_PATH = "../data/"
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/")
 
 selectors = {"BRFE": BisectingRFE(None, use_derivative=False, cv=5, verbose=0,
                                   n_jobs=1),

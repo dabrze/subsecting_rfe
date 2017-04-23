@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: brfe
+Version: 1.0.0
+Summary: Bisecting Recursive Feature Elimination
+Home-page: https://github.com/dabrze/bisecting_rfe
+Author: Dariusz Brzezinski
+Author-email: dariusz.brzezinski@cs.put.poznan.pl
+License: MIT
+Description: UNKNOWN
+Keywords: Feature Selection Python
+Platform: UNKNOWN

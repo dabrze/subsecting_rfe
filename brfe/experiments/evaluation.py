@@ -21,7 +21,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics.classification import _prf_divide
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import StratifiedKFold
-from multiprocessing.context import TimeoutError
+import multiprocessing
 
 
 class Evaluation:
@@ -161,7 +161,7 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
                                  scorer, X, y, train, test)
             for train, test in cv.split(X, y))
-    except TimeoutError:
+    except multiprocessing.context.TimeoutError:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
                                 selector, scorer, timeout, "timeout", [1], [0])
         evaluations = [evaluation] * folds

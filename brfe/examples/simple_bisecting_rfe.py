@@ -5,7 +5,7 @@
 from sklearn.datasets import make_friedman1
 from sklearn.feature_selection import RFECV
 from sklearn.svm import SVR
-from bisecting_rfe import BisectingRFE
+from brfe.bisecting_rfe import BisectingRFE
 
 X, y = make_friedman1(n_samples=50, n_features=10, random_state=0)
 estimator = SVR(kernel="linear")
