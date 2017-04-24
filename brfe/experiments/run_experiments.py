@@ -22,13 +22,17 @@ from evaluation import evaluate, plot_comparison
 SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/")
 
-selectors = {"BRFE": BisectingRFE(None, use_derivative=False, cv=5, verbose=0,
-                                  n_jobs=1),
-             "d-BRFE": BisectingRFE(None, use_derivative=True, cv=5, verbose=0,
-                                    n_jobs=1),
-             "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
-             "RFE-10": RFECV(None, step=10, cv=5, verbose=0, n_jobs=1),
-             "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)}
+selectors = {
+    "BRFE": BisectingRFE(None, use_derivative=False, cv=5, n_jobs=1),
+    "BRFE+": BisectingRFE(None, use_derivative=False, cv=5, n_jobs=1,
+                          promote_more_features=True),
+    "d-BRFE": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1),
+    "d-BRFE+": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1,
+                            promote_more_features=True),
+    "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
+    "RFE-50": RFECV(None, step=50, cv=5, verbose=0, n_jobs=1),
+    "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
+             }
 scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,

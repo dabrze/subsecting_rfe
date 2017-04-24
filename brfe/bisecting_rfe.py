@@ -112,7 +112,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
     >>> from sklearn.datasets import make_friedman1
     >>> from sklearn.svm import SVR
-    >>> from bisecting_rfe import BisectingRFE
+    >>> from brfe.bisecting_rfe import BisectingRFE
     >>>
     >>> X, y = make_friedman1(n_samples=50, n_features=10, random_state=0)
     >>> estimator = SVR(kernel="linear")
@@ -125,11 +125,12 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
     """
     def __init__(self, estimator, use_derivative=False, cv=None, scoring=None,
-                 verbose=0, n_jobs=1):
+                 promote_more_features=False, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.use_derivative = use_derivative
         self.cv = cv
         self.scoring = scoring
+        self.promote_more_features = promote_more_features
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -171,15 +172,20 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
 
                 # update interval
+                old_settings = np.seterr(invalid="ignore")
                 if d_upper * d_mid < 0:
                     lower = mid
                 elif d_upper * d_mid == 0:
                     if self.mean_scores_[mid] < self.mean_scores_[upper]:
                         lower = mid
+                    elif self.mean_scores_[mid] == self.mean_scores_[upper] \
+                            and self.promote_more_features:
+                        lower = mid
                     else:
                         upper = mid
                 else:
                     upper = mid
+                np.seterr(**old_settings)
         else:
             while upper - lower > 1:
                 features = self._top_features(self.mean_rankings_[upper], mid)
@@ -190,18 +196,27 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 # update interval
                 if self.mean_scores_[mid] < self.mean_scores_[upper]:
                     lower = mid
+                elif self.mean_scores_[mid] == self.mean_scores_[upper] \
+                        and self.promote_more_features:
+                    lower = mid
                 else:
                     upper = mid
                 mid = (upper + lower) // 2
 
-        # Set final attributes
-        k = lower \
-            if self.mean_scores_[lower] > self.mean_scores_[upper] \
-            else upper
-        features = self._top_features(self.mean_rankings_[upper], k)
-        self.estimator_ = clone(self.estimator)
-        self.estimator_.fit(X[:, features], y)
+        # Determine final attributes
+        if self.promote_more_features:
+            n_features_to_select = lower \
+                if self.mean_scores_[lower] > self.mean_scores_[upper] \
+                else upper
+        else:
+            n_features_to_select = lower \
+                if self.mean_scores_[lower] > self.mean_scores_[upper] \
+                else upper
 
+        features = self._top_features(self.mean_rankings_[upper],
+                                      n_features_to_select)
+
+        # Set final attributes
         self.n_features_ = len(features)
         self.support_ = np.zeros(n_features, dtype=np.bool)
         self.support_[features] = True
@@ -215,6 +230,9 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
             for pos, feat_idx in enumerate(self.mean_rankings_[feat_num]):
                 self.ranking_[feat_idx] -= pos
+
+        self.estimator_ = clone(self.estimator)
+        self.estimator_.fit(self.transform(X), y)
 
         if self.verbose > 0:
             print("Final number of features: %d." % self.n_features_)

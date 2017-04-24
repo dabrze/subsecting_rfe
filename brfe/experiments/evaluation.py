@@ -154,7 +154,7 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=2*60*60):
+             seed, folds=10, n_jobs=-1, timeout=1*60*60):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
     try:
@@ -178,9 +178,8 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
     y_train, y_test = y[train], y[test]
 
     if selector is None:
-        clf = clone(classifier)
+        clf = make_pipeline(StandardScaler(), clone(classifier))
     else:
-        scaler = StandardScaler()
         sel = clone(selector)
         sel.set_params(estimator=clone(classifier), scoring=scorer)
         if "step" in sel.get_params():
@@ -189,7 +188,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 log_steps = math.frexp(feature_num)[1]
                 step = feature_num // log_steps
                 sel.set_params(step=step)
-        clf = make_pipeline(scaler, sel)
+        clf = make_pipeline(StandardScaler(), sel)
 
     start = time.time()
     clf.fit(X_train, y_train)
@@ -212,7 +211,7 @@ def plot_comparison(file_name="ExperimentResults.csv",
     logging.info("Creating comparison plot")
 
 
-def g_mean(y_true, y_pred, labels=None, correction=0.0):
+def g_mean(y_true, y_pred, labels=None, correction=0.001):
     """
     Computes the geometric mean of class-wise recalls.
     :param y_true: True class labels.
