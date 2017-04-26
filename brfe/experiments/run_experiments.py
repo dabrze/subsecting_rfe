@@ -2,8 +2,8 @@
 # Authors: Dariusz Brzezinski <dariusz.brzezinski@cs.put.poznan.pl>
 # License: MIT
 
-import sys
 import os
+import glob
 import scipy.io
 import logging
 logging.basicConfig(level=logging.DEBUG,
@@ -17,35 +17,35 @@ from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
 from brfe.bisecting_rfe import BisectingRFE
-from evaluation import evaluate, plot_comparison
+from evaluation import evaluate
 
 SEED = 23
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 
 selectors = {
     "BRFE": BisectingRFE(None, use_derivative=False, cv=5, n_jobs=1),
-    "BRFE+": BisectingRFE(None, use_derivative=False, cv=5, n_jobs=1,
-                          promote_more_features=True),
-    "d-BRFE": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1),
-    "d-BRFE+": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1,
-                            promote_more_features=True),
-    "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
+    # "BRFE+": BisectingRFE(None, use_derivative=False, cv=5, n_jobs=1,
+    #                       promote_more_features=True),
+    # "d-BRFE": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1),
+    # "d-BRFE+": BisectingRFE(None, use_derivative=True, cv=5, n_jobs=1,
+    #                         promote_more_features=True),
     "RFE-50": RFECV(None, step=50, cv=5, verbose=0, n_jobs=1),
-    "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
+    # "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
              }
 scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
                                                        n_jobs=-1,
                                                        random_state=SEED),
-               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=500),
+               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
                "Logistic Regression": LogisticRegression(random_state=SEED,
                                                          n_jobs=-1)}
 
 if __name__ == '__main__':
-    for filename in os.listdir(DATA_PATH):
+    for file in glob.glob(DATA_PATH):
+        filename = os.path.basename(file)
         logging.info(filename)
-        mat = scipy.io.loadmat(os.path.join(DATA_PATH, filename))
+        mat = scipy.io.loadmat(os.path.join(DATA_PATH, file))
         X = mat['X'].astype(float)
         y = mat['Y'][:, 0]
 
@@ -60,4 +60,3 @@ if __name__ == '__main__':
                     evaluate(filename, selector, selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
                              SEED)
-    plot_comparison()

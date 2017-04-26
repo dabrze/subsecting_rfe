@@ -7,6 +7,7 @@ import csv
 import math
 import time
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,7 @@ class Evaluation:
     """
     def __init__(self, dataset_name, selector_name, X, y, classifier,
                  selector, scorer, processing_time, selected_feature_num,
-                 y_true, y_pred):
+                 y_true, y_pred,  grid_scores, selected_features):
         self.dataset_name = dataset_name
         self.dataset_stats = DatasetStatistics(X, y)
         self.selector_name = selector_name
@@ -40,6 +41,7 @@ class Evaluation:
         self.selected_feature_num = selected_feature_num
         self.y_true = y_true
         self.y_pred = y_pred
+        self.selected_features = selected_features
         self.processing_time = processing_time
         self.accuracy = metrics.accuracy_score(y_true, y_pred)
         self.macro_recall = metrics.recall_score(y_true, y_pred,
@@ -48,6 +50,10 @@ class Evaluation:
         self.gmean = g_mean(y_true, y_pred)
         self.num_of_classes = self.dataset_stats.num_of_classes
         self.start_date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()-processing_time))
+        if grid_scores is None or isinstance(grid_scores, dict):
+            self.grid_scores = grid_scores
+        else:
+            self.grid_scores = str(list(grid_scores))
 
     def write_to_csv(self, file_name="ExperimentResults.csv",
                      save_to_folder=os.path.join(os.path.abspath(
@@ -75,6 +81,7 @@ class Evaluation:
 
         with open(file_path, mode) as f:
             writer = csv.writer(f, delimiter=',', quoting=csv.QUOTE_NONNUMERIC, lineterminator='\n')
+            np.set_printoptions(threshold=np.inf)
 
             if write_header:
                 writer.writerow(["Start date",
@@ -90,11 +97,12 @@ class Evaluation:
                                  "Scorer",
                                  "Processing time",
                                  "Feature num",
-                                 "Selected features",
+                                 "Selected num",
                                  "Accuracy",
                                  "Macro recall",
                                  "Kappa",
-                                 "G-mean"
+                                 "G-mean",
+                                 "Grid scores"
                                  ])
 
             writer.writerow([self.start_date_time,
@@ -114,7 +122,8 @@ class Evaluation:
                              self.accuracy,
                              self.macro_recall,
                              self.kappa,
-                             self.gmean
+                             self.gmean,
+                             self.grid_scores
                              ])
 
 
@@ -191,24 +200,24 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
         clf = make_pipeline(StandardScaler(), sel)
 
     start = time.time()
-    clf.fit(X_train, y_train)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        clf.fit(X_train, y_train)
     training_time = time.time() - start
     y_true, y_pred = y_test, clf.predict(X_test)
 
     if selector is None:
         selected_feature_num = None
+        grid_scores = None
+        selected_features = None
     else:
         selected_feature_num = clf.steps[1][1].n_features_
+        grid_scores = clf.steps[1][1].grid_scores_
+        selected_features = clf.steps[1][1].support_
 
     return Evaluation(dataset, selector_name, X, y, classifier, selector,
                       scorer, training_time, selected_feature_num, y_true,
-                      y_pred)
-
-
-def plot_comparison(file_name="ExperimentResults.csv",
-                    save_to_folder=os.path.join(os.path.dirname(__file__),
-                                                 "results")):
-    logging.info("Creating comparison plot")
+                      y_pred, grid_scores, selected_features)
 
 
 def g_mean(y_true, y_pred, labels=None, correction=0.001):

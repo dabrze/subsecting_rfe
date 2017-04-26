@@ -4,10 +4,9 @@
 
 from sklearn.datasets import make_friedman1, make_classification
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVR, SVC
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVR
 
-from bisecting_rfe import BisectingRFE
+from brfe.bisecting_rfe import BisectingRFE
 from unittest import TestCase
 
 
