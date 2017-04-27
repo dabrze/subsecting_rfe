@@ -39,12 +39,11 @@ selectors = {
     "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
     "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
              }
-scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
+scorers = {"Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
                                                        n_jobs=-1,
-                                                       random_state=SEED),
-               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000)}
+                                                       random_state=SEED)}
 
 if __name__ == '__main__':
     for file_pair in [(X_SMALL_DATA_PATH, Y_SMALL_DATA_PATH),
