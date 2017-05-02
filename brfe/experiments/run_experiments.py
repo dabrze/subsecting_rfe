@@ -45,7 +45,7 @@ if __name__ == '__main__':
     for file in glob.glob(DATA_PATH):
         filename = os.path.basename(file)
         logging.info(filename)
-        mat = scipy.io.loadmat(os.path.join(DATA_PATH, file))
+        mat = scipy.io.loadmat(file)
         X = mat['X'].astype(float)
         y = mat['Y'][:, 0]
 
