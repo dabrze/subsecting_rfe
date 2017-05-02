@@ -23,7 +23,7 @@ SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 
 selectors = {
-    "RSS-1": BisectingRFE(None, step=1, cv=5, n_jobs=1, verbose=2),
+    "RSS-50": BisectingRFE(None, step=50, cv=5, n_jobs=1),
     "RSS-log": BisectingRFE(None, step="log", cv=5, n_jobs=1),
     "BRFE": BisectingRFE(None, step="bisect", use_derivative=False, cv=5, n_jobs=1),
     "d-BRFE": BisectingRFE(None, step="bisect", use_derivative=True, cv=5, n_jobs=1),
