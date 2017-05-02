@@ -124,13 +124,13 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     >>> selector.ranking_
     array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
     """
-    def __init__(self, estimator, use_derivative=False, cv=None, scoring=None,
-                 promote_more_features=False, verbose=0, n_jobs=1):
+    def __init__(self, estimator, step=1, cv=None, scoring=None,
+                 use_derivative=False, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.use_derivative = use_derivative
+        self.step = step
         self.cv = cv
         self.scoring = scoring
-        self.promote_more_features = promote_more_features
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -152,69 +152,82 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         scorer = check_scoring(self.estimator, scoring=self.scoring)
         n_features = X.shape[1]
 
-        # Initial values
-        lower = 0
-        mid = upper = n_features
         self.grid_scores_ = dict()
         self.mean_scores_ = dict()
-        self.mean_scores_[0] = float("-inf")
-        self.mean_scores_[n_features + 1] = float("-inf")
         self.rankings_ = dict()
         self.mean_rankings_ = dict()
         self.mean_rankings_[n_features] = list(range(n_features))
-        self.mean_rankings_[n_features+1] = list(range(n_features))
 
-        if self.use_derivative:
-            while upper - lower > 1:
-                mid = (upper + lower) // 2
-                d_upper = self._discrete_derivative(upper, upper, cv, X, y,
-                                                    scorer)
-                d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
+        if self.step == "bisect":
+            # Initial values
+            lower = 0
+            mid = upper = n_features
+            self.mean_scores_[0] = float("-inf")
+            self.mean_scores_[n_features + 1] = float("-inf")
+            self.mean_rankings_[n_features+1] = list(range(n_features))
 
-                # update interval
-                old_settings = np.seterr(invalid="ignore")
-                if d_upper * d_mid < 0:
-                    lower = mid
-                elif d_upper * d_mid == 0:
-                    if self.mean_scores_[mid] < self.mean_scores_[upper]:
+            if self.use_derivative:
+                while upper - lower > 1:
+                    mid = (upper + lower) // 2
+                    d_upper = self._discrete_derivative(upper, upper, cv, X, y,
+                                                        scorer)
+                    d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
+
+                    # update interval
+                    old_settings = np.seterr(invalid="ignore")
+                    if d_upper * d_mid < 0:
                         lower = mid
-                    elif self.mean_scores_[mid] == self.mean_scores_[upper] \
-                            and self.promote_more_features:
+                    elif d_upper * d_mid == 0:
+                        if d_mid > 0:
+                            lower = mid
+                        else:
+                            upper = mid
+                    else:
+                        upper = mid
+                    np.seterr(**old_settings)
+            else:
+                while upper - lower > 1:
+                    features = self._top_features(self.mean_rankings_[upper], mid)
+                    self.grid_scores_[mid], self.rankings_[mid],\
+                    self.mean_scores_[mid], self.mean_rankings_[mid]\
+                        = self._get_cv_results(features, cv, X, y, scorer)
+
+                    # update interval
+                    if self.mean_scores_[mid] < self.mean_scores_[upper]:
                         lower = mid
                     else:
                         upper = mid
-                else:
-                    upper = mid
-                np.seterr(**old_settings)
+                    mid = (upper + lower) // 2
+
+            # Determine final attributes
+            n_features_to_select = lower \
+                if self.mean_scores_[lower] > self.mean_scores_[upper] \
+                else upper
+
+            features = self._top_features(self.mean_rankings_[upper],
+                                          n_features_to_select)
         else:
-            while upper - lower > 1:
-                features = self._top_features(self.mean_rankings_[upper], mid)
-                self.grid_scores_[mid], self.rankings_[mid],\
-                self.mean_scores_[mid], self.mean_rankings_[mid]\
+            previous_feat_num = n_features
+            feat_num = n_features
+
+            while feat_num > 0:
+                features = self._top_features(self.mean_rankings_[previous_feat_num], feat_num)
+                self.grid_scores_[feat_num], self.rankings_[feat_num], \
+                self.mean_scores_[feat_num], self.mean_rankings_[feat_num] \
                     = self._get_cv_results(features, cv, X, y, scorer)
 
-                # update interval
-                if self.mean_scores_[mid] < self.mean_scores_[upper]:
-                    lower = mid
-                elif self.mean_scores_[mid] == self.mean_scores_[upper] \
-                        and self.promote_more_features:
-                    lower = mid
-                else:
-                    upper = mid
-                mid = (upper + lower) // 2
+                feat_num -= self.step
 
-        # Determine final attributes
-        if self.promote_more_features:
-            n_features_to_select = lower \
-                if self.mean_scores_[lower] > self.mean_scores_[upper] \
-                else upper
-        else:
-            n_features_to_select = lower \
-                if self.mean_scores_[lower] > self.mean_scores_[upper] \
-                else upper
+            # Find lowest number of features with max score
+            best_feat_num = 1
+            best_feat_score = float("-inf")
+            for feat_num in sorted(self.mean_rankings_, reverse=True):
+                if self.mean_scores_[feat_num] >= best_feat_score:
+                    best_feat_score = self.mean_scores_[feat_num]
+                    best_feat_num = feat_num
 
-        features = self._top_features(self.mean_rankings_[upper],
-                                      n_features_to_select)
+            n_features_to_select = best_feat_num
+            features = self.mean_rankings_[n_features_to_select]
 
         # Set final attributes
         self.n_features_ = len(features)
@@ -298,7 +311,11 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         # for sparse case ranks is matrix
         ranks = np.ravel(ranks)
         ranks = features[ranks]
-        score = _score(estimator, X_test[:, features], y_test, scorer)
+
+        if scorer is not None:
+            score = _score(estimator, X_test[:, features], y_test, scorer)
+        else:
+            score = None
 
         return (score, ranks)
 
@@ -323,8 +340,6 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             self.grid_scores_[mid], self.rankings_[mid],\
             self.mean_scores_[mid], self.mean_rankings_[mid] = \
                 self._get_cv_results(features, cv, X, y, scorer)
-
-
 
         return self.mean_scores_[mid+1] - self.mean_scores_[mid]
 

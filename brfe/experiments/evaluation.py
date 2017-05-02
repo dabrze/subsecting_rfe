@@ -30,7 +30,7 @@ class Evaluation:
     """
     def __init__(self, dataset_name, selector_name, X, y, classifier,
                  selector, scorer, processing_time, selected_feature_num,
-                 y_true, y_pred,  grid_scores, selected_features):
+                 y_true, y_pred, grid_scores, selected_features):
         self.dataset_name = dataset_name
         self.dataset_stats = DatasetStatistics(X, y)
         self.selector_name = selector_name
@@ -49,7 +49,11 @@ class Evaluation:
         self.kappa = metrics.cohen_kappa_score(y_true, y_pred)
         self.gmean = g_mean(y_true, y_pred)
         self.num_of_classes = self.dataset_stats.num_of_classes
-        self.start_date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()-processing_time))
+        if processing_time is not None:
+            self.start_date_time = time.strftime("%Y-%m-%d %H:%M:%S",
+                                time.localtime(time.time()-processing_time))
+        else:
+            self.start_date_time = "Error"
         if grid_scores is None or isinstance(grid_scores, dict):
             self.grid_scores = grid_scores
         else:
@@ -163,7 +167,8 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=1*60*60):
+             seed, folds=10, n_jobs=-1, timeout=1*60*60,
+             results_file="ExperimentResults.csv"):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
     try:
@@ -171,14 +176,22 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
                                  scorer, X, y, train, test)
             for train, test in cv.split(X, y))
+    except Exception as ex:
+        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+                                selector, scorer, timeout, "error", [1], [0],
+                                None, None)
+        evaluations = [evaluation] * folds
+        logging.warning("%s" % ex)
     except:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "timeout", [1], [0])
+                                selector, scorer, timeout, "timeout", [1], [0],
+                                None, None)
         evaluations = [evaluation] * folds
-        logging.warning("%s probably interrupted after timeout %d seconds")
+        logging.warning("%s probably interrupted after timeout %d seconds" %
+                        (selector_name, timeout))
 
     for evaluation in evaluations:
-        evaluation.write_to_csv()
+        evaluation.write_to_csv(results_file)
 
 
 def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
