@@ -55,7 +55,7 @@ class Evaluation:
         else:
             self.start_date_time = "Error"
         if grid_scores is None or isinstance(grid_scores, dict):
-            self.grid_scores = grid_scores
+            self.grid_scores = str(grid_scores).replace('\n', ' ').replace('\r', '')
         else:
             self.grid_scores = str(list(grid_scores))
 
