@@ -50,11 +50,12 @@ if __name__ == '__main__':
         for scorer in scorers:
             for classifier in classifiers:
                 evaluate(filename, "All", None, classifiers[classifier],
-                         scorers[scorer], X, y, SEED, "Benchmarks.csv")
+                         scorers[scorer], X, y, SEED,
+                         results_file="Benchmarks.csv")
 
                 for selector in selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
                     evaluate(filename, selector, selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, "Benchmarks.csv")
+                             SEED, results_file="Benchmarks.csv")

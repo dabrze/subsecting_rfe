@@ -49,6 +49,12 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         Similarly, algorithms based on decision trees also rank feature 
         importance.
 
+    step : int or "bisect", optional (default=1)
+        If greater than or equal to 1, then `step` corresponds to the (integer)
+        number of features to remove at each iteration.
+        If "bisect", then `the algorithm performs bisecting recursive feature
+        elimination.
+
     use_derivative : bool, optional, default: False
         Tells the algorithm whether to use discrete derivatives during 
         bisection (True) or assume a steeper fall of the classifier score on 
