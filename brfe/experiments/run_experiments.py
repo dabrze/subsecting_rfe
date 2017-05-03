@@ -24,13 +24,13 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 
 selectors = {
     "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
-    # "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
-    # "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
-    # "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
+    "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
+    "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
     "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    # "RFE-log-5": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    # "RFE-log-10": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    # "RFE-log": RFECV(None, step="log", cv=5, n_jobs=1)
+    "RFE-log-5": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log": RFECV(None, step="log", cv=5, n_jobs=1)
              }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
