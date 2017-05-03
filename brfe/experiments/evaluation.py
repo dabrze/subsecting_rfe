@@ -181,7 +181,7 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
                                 selector, scorer, timeout, "error", [1], [0],
                                 None, None)
         evaluations = [evaluation] * folds
-        logging.warning("%s" % ex.strerror)
+        logging.warning("Exception: %s" % ex)
     except:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
                                 selector, scorer, timeout, "timeout", [1], [0],
@@ -210,9 +210,9 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 log_steps = math.log(feature_num, 2) // 1
                 step = feature_num // log_steps
                 sel.set_params(step=step)
-            elif sel.get_params()["step"].startswith("log"):
+            elif str(sel.get_params()["step"]).startswith("log"):
                 feature_num = X.shape[1]
-                log_base = sel.get_params()["step"].split("-")[1]
+                log_base = int(sel.get_params()["step"].split("-")[1])
                 log_steps = math.log(feature_num, log_base) * log_base // 1
                 step = feature_num // log_steps
                 sel.set_params(step=step)
