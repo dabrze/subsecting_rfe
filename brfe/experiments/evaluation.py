@@ -181,7 +181,7 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
                                 selector, scorer, timeout, "error", [1], [0],
                                 None, None)
         evaluations = [evaluation] * folds
-        logging.warning("%s" % ex)
+        logging.warning("%s" % ex.strerror)
     except:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
                                 selector, scorer, timeout, "timeout", [1], [0],

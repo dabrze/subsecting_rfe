@@ -55,10 +55,14 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         If "bisect", then `the algorithm performs bisecting recursive feature
         elimination.
 
-    use_derivative : bool, optional, default: False
-        Tells the algorithm whether to use discrete derivatives during 
-        bisection (True) or assume a steeper fall of the classifier score on 
-        the left side of the max value (False, default).
+    method : str, optional, default: "subsect"
+        Tells the algorithm whether how to look for best number of features. 
+        Possible inputs for method are:
+        
+        - "subsect", to divide each surrounding of max with with step 
+        additional points,
+        - "bisect", to perform bisection,
+        - "linear" to perform standarnd steps from max features downwards.
 
     cv : int, cross-validation generator or an iterable, optional
         Determines the cross-validation splitting strategy.
@@ -110,30 +114,11 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
     estimator_ : object
         The external estimator fit on the reduced dataset.
-
-    Examples
-    --------
-    The following example shows how to retrieve the a-priori not known 5
-    informative features in the Friedman #1 dataset.
-
-    >>> from sklearn.datasets import make_friedman1
-    >>> from sklearn.svm import SVR
-    >>> from brfe.bisecting_rfe import BisectingRFE
-    >>>
-    >>> X, y = make_friedman1(n_samples=50, n_features=10, random_state=0)
-    >>> estimator = SVR(kernel="linear")
-    >>> selector = BisectingRFE(estimator, cv=5)
-    >>> selector = selector.fit(X, y)
-    >>> selector.support_
-    array([ True,  True,  True,  True,  True,
-            False, False, False, False, False], dtype=bool)
-    >>> selector.ranking_
-    array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
     """
-    def __init__(self, estimator, step=1, cv=None, scoring=None,
-                 use_derivative=False, verbose=0, n_jobs=1):
+    def __init__(self, estimator, step=1, method="subsect", cv=None,
+                 scoring=None, verbose=0, n_jobs=1):
         self.estimator = estimator
-        self.use_derivative = use_derivative
+        self.method = method
         self.step = step
         self.cv = cv
         self.scoring = scoring
@@ -164,46 +149,32 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         self.mean_rankings_ = dict()
         self.mean_rankings_[n_features] = list(range(n_features))
 
-        if self.step == "bisect":
+        if self.method == "bisect":
             # Initial values
             lower = 0
-            mid = upper = n_features
+            upper = n_features
             self.mean_scores_[0] = float("-inf")
             self.mean_scores_[n_features + 1] = float("-inf")
             self.mean_rankings_[n_features+1] = list(range(n_features))
 
-            if self.use_derivative:
-                while upper - lower > 1:
-                    mid = (upper + lower) // 2
-                    d_upper = self._discrete_derivative(upper, upper, cv, X, y,
-                                                        scorer)
-                    d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
+            while upper - lower > 1:
+                mid = (upper + lower) // 2
+                d_upper = self._discrete_derivative(upper, upper, cv, X, y,
+                                                    scorer)
+                d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
 
-                    # update interval
-                    old_settings = np.seterr(invalid="ignore")
-                    if d_upper * d_mid < 0:
-                        lower = mid
-                    elif d_upper * d_mid == 0:
-                        if d_mid > 0:
-                            lower = mid
-                        else:
-                            upper = mid
-                    else:
-                        upper = mid
-                    np.seterr(**old_settings)
-            else:
-                while upper - lower > 1:
-                    features = self._top_features(self.mean_rankings_[upper], mid)
-                    self.grid_scores_[mid], self.rankings_[mid],\
-                    self.mean_scores_[mid], self.mean_rankings_[mid]\
-                        = self._get_cv_results(features, cv, X, y, scorer)
-
-                    # update interval
-                    if self.mean_scores_[mid] < self.mean_scores_[upper]:
+                # update interval
+                old_settings = np.seterr(invalid="ignore")
+                if d_upper * d_mid < 0:
+                    lower = mid
+                elif d_upper * d_mid == 0:
+                    if d_mid > 0:
                         lower = mid
                     else:
                         upper = mid
-                    mid = (upper + lower) // 2
+                else:
+                    upper = mid
+                np.seterr(**old_settings)
 
             # Determine final attributes
             n_features_to_select = lower \
@@ -212,7 +183,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
             features = self._top_features(self.mean_rankings_[upper],
                                           n_features_to_select)
-        else:
+        elif self.method == "linear":
             previous_feat_num = n_features
             feat_num = n_features
 
@@ -234,6 +205,53 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
             n_features_to_select = best_feat_num
             features = self.mean_rankings_[n_features_to_select]
+        elif self.method == "subsect":
+            if self.step <= 1:
+                raise ValueError("Step for method='subsect' must be >= 2")
+
+            # Starting range
+            lower = 1
+            upper = n_features
+            m_step = (upper-lower) // self.step
+
+            if m_step == 0:
+                raise ValueError("Step too large for given number of features")
+
+            self.mean_scores_[0] = float("-inf")
+            features = self._top_features(self.mean_rankings_[n_features], n_features)
+            self.grid_scores_[upper], self.rankings_[upper], \
+            self.mean_scores_[upper], self.mean_rankings_[upper] \
+                = self._get_cv_results(features, cv, X, y, scorer)
+
+            while upper - lower > 2:
+                if m_step == 0:
+                    m_step = 1
+                mids = [m for m in range(upper - m_step, lower-1, -m_step)]
+                previous_mid = upper
+
+                for mid in mids:
+                    features = self._top_features(self.mean_rankings_[previous_mid], mid)
+                    self.grid_scores_[mid], self.rankings_[mid], \
+                    self.mean_scores_[mid], self.mean_rankings_[mid] \
+                        = self._get_cv_results(features, cv, X, y, scorer)
+                    previous_mid = mid
+
+                # Find feature num with max score
+                best = 0
+                best_score = float("-inf")
+                for feat_num in [upper] + mids:
+                    if self.mean_scores_[feat_num] >= best_score:
+                        best_score = self.mean_scores_[feat_num]
+                        best = feat_num
+
+                lower = best - m_step if best - m_step > 0 else best
+                upper = best + m_step if best != upper else best
+                m_step = (upper-lower) // self.step
+
+            n_features_to_select = best
+            features = self.mean_rankings_[n_features_to_select]
+        else:
+            raise ValueError("Invalid 'method' value: %s" % self.method)
 
         # Set final attributes
         self.n_features_ = len(features)
