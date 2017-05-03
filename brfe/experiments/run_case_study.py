@@ -35,8 +35,8 @@ selectors = {
     "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
     "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
     "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    "RFE-log-5": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    "RFE-log-10": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="log-5", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="log-10", cv=5, n_jobs=1),
     "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
     "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
              }
