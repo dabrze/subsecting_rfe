@@ -206,8 +206,8 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             n_features_to_select = best_feat_num
             features = self.mean_rankings_[n_features_to_select]
         elif self.method == "subsect":
-            if self.step <= 1:
-                raise ValueError("Step for method='subsect' must be >= 2")
+            if self.step < 3:
+                raise ValueError("Step for method='subsect' must be >= 3")
 
             # Starting range
             lower = 1

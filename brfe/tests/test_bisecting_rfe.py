@@ -34,19 +34,19 @@ class TestBRFE(TestCase):
 
     def test_simple_brfe(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, cv=5)
+        selector = BisectingRFE(estimator, method="subsect", step=3, cv=5)
         selector = selector.fit(self.X, self.y)
 
-        self.assertEqual(selector.n_features_, 5)
+        self.assertEqual(selector.n_features_, 6)
         self.assertListEqual(list(selector.support_),
                              [True, True, True, True, True,
-                              False, False, False, False, False])
+                              False, False, False, True, False])
         self.assertListEqual(list(selector.ranking_),
-                             [4, 3, 5, 1, 2, 9, 7, 10, 6, 8])
+                             [4, 3, 5, 1, 2, 9, 8, 10, 6, 7])
 
     def test_derivative_brfe(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, cv=5, use_derivative=True)
+        selector = BisectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X, self.y)
 
         self.assertEqual(selector.n_features_, 6)
@@ -58,29 +58,29 @@ class TestBRFE(TestCase):
 
     def test_grid_scores(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, cv=5)
+        selector = BisectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X, self.y)
 
         self.assertDictEqual(selector.grid_scores_,
-                             {3: [0.38937936748076785, 0.2426011887329178,
-                                  0.46884848507972865, 0.3508951952955516,
-                                  0.534873103339707],
+                             {8: [0.5185335061284553, 0.20757885759115446,
+                                  0.47032927512437284, 0.3776846502752701,
+                                  0.5451975991145226],
                               10: [0.41190487128807507, 0.13605155234265276,
                                    0.46973011408552845, 0.37393771166171363,
                                    0.5417655748256495],
-                              2: [0.3614134708042146, 0.31978853750926894,
-                                  0.34085152150463516, 0.20069623061669464,
-                                  0.4779986874099314],
-                              4: [0.43821885897324664, 0.2071969047037151,
-                                  0.41580010132152834, 0.3814514476737748,
-                                  0.5109883252425744],
                               5: [0.5381369168437966, 0.2586791264531122,
                                   0.4754050489169737, 0.4397808711286595,
-                                  0.5328327875008043]})
+                                  0.5328327875008043],
+                              6: [0.5157600865654008, 0.27223326180097385,
+                                  0.5074814094501234, 0.4147212020096894,
+                                  0.5385411492748724],
+                              7: [0.5109260270024892, 0.22786073839525267,
+                                  0.492240987028568, 0.41598318948771607,
+                                  0.530390339891014]})
 
     def test_classification(self):
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5)
+        selector = BisectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_c, self.y_c)
 
         self.assertEqual(selector.n_features_, 5)
@@ -88,29 +88,29 @@ class TestBRFE(TestCase):
                              [True, True, True, True, True,
                               False, False, False, False, False])
         self.assertListEqual(list(selector.ranking_),
-                             [5, 4, 1, 2, 3, 7, 8, 9, 10, 6])
+                             [4, 5, 2, 1, 3, 7, 8, 9, 10, 6])
 
     def test_limits(self):
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5)
+        selector = BisectingRFE(estimator, cv=5, step=3)
         selector = selector.fit(self.X_l, self.y_l)
 
         self.assertEqual(selector.n_features_, 1)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, use_derivative=True)
+        selector = BisectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_l, self.y_l)
 
         self.assertEqual(selector.n_features_, 1)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5)
+        selector = BisectingRFE(estimator, cv=5, step=3)
         selector = selector.fit(self.X_r, self.y_r)
 
         self.assertEqual(selector.n_features_, 10)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, use_derivative=True)
+        selector = BisectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_r, self.y_r)
 
         self.assertEqual(selector.n_features_, 10)

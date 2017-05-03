@@ -23,14 +23,16 @@ SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 
 selectors = {
-    "RSS-50": BisectingRFE(None, step=50, cv=5, n_jobs=1),
-    "RSS-log": BisectingRFE(None, step="log", cv=5, n_jobs=1),
-    "BRFE": BisectingRFE(None, step="bisect", use_derivative=False, cv=5, n_jobs=1),
-    "d-BRFE": BisectingRFE(None, step="bisect", use_derivative=True, cv=5, n_jobs=1),
-    "RFE-50": RFECV(None, step=50, cv=5, verbose=0, n_jobs=1),
-    "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
+    "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
+    "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
+    "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
+    "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log": RFECV(None, step="log", cv=5, n_jobs=1)
              }
-scorers = {"Kappa": make_scorer(cohen_kappa_score), "Accuracy": "accuracy"}
+scorers = {"Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
                                                        n_jobs=-1,

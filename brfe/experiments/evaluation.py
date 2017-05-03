@@ -207,9 +207,16 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
         if "step" in sel.get_params():
             if sel.get_params()["step"] == "log":
                 feature_num = X.shape[1]
-                log_steps = math.frexp(feature_num)[1]
+                log_steps = math.log(feature_num, 2) // 1
                 step = feature_num // log_steps
                 sel.set_params(step=step)
+            elif sel.get_params()["step"].startswith("log"):
+                feature_num = X.shape[1]
+                log_base = sel.get_params()["step"].split("-")[1]
+                log_steps = math.log(feature_num, log_base) * log_base // 1
+                step = feature_num // log_steps
+                sel.set_params(step=step)
+
         clf = make_pipeline(StandardScaler(), sel)
 
     start = time.time()

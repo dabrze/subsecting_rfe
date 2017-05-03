@@ -30,14 +30,15 @@ Y_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
                                  "../data/pdb_blobs_y_small.csv")
 
 selectors = {
-    # "RSS-1": BisectingRFE(None, step=1, cv=5, n_jobs=1, verbose=2),
-    "SRFE-10": BisectingRFE(None, step=10, method="subsect", cv=5, n_jobs=1, \
-                                                                   verbose=2),
-    # "RSS-log": BisectingRFE(None, step="log", cv=5, n_jobs=1),
-    # "BRFE": BisectingRFE(None, step="bisect", use_derivative=False, cv=5, n_jobs=1),
-    # "d-BRFE": BisectingRFE(None, step="bisect", use_derivative=True, cv=5, n_jobs=1),
-    # "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
-    # "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
+    "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
+    "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
+    "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
+    "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="log-3", cv=5, n_jobs=1),
+    "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
+    "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
              }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
@@ -47,7 +48,7 @@ classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
 
 if __name__ == '__main__':
     for file_pair in [(X_SMALL_DATA_PATH, Y_SMALL_DATA_PATH),
-                      # (X_DATA_PATH, Y_DATA_PATH)
+                      (X_DATA_PATH, Y_DATA_PATH)
                       ]:
         filename = os.path.basename(file_pair[0])
         logging.info(filename)
