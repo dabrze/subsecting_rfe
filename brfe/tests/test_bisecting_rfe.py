@@ -34,7 +34,7 @@ class TestBRFE(TestCase):
 
     def test_simple_brfe(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, method="subsect", step=3, cv=5)
+        selector = BisectingRFE(estimator, method="subsect", step=2, cv=5)
         selector = selector.fit(self.X, self.y)
 
         self.assertEqual(selector.n_features_, 6)

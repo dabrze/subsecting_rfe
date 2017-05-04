@@ -206,8 +206,8 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             n_features_to_select = best_feat_num
             features = self.mean_rankings_[n_features_to_select]
         elif self.method == "subsect":
-            if self.step < 3:
-                raise ValueError("Step for method='subsect' must be >= 3")
+            if self.step < 2:
+                raise ValueError("Step for method='subsect' must be >= 2")
 
             # Starting range
             lower = 1
@@ -215,7 +215,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             m_step = (upper-lower) // self.step
 
             if m_step == 0:
-                raise ValueError("Step too large for given number of features")
+                m_step = 1
 
             self.mean_scores_[0] = float("-inf")
             features = self._top_features(self.mean_rankings_[n_features], n_features)
@@ -223,9 +223,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             self.mean_scores_[upper], self.mean_rankings_[upper] \
                 = self._get_cv_results(features, cv, X, y, scorer)
 
-            while upper - lower > 2:
-                if m_step == 0:
-                    m_step = 1
+            while m_step > 0:
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 previous_mid = upper
 
@@ -246,7 +244,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
                 lower = best - m_step if best - m_step > 0 else best
                 upper = best + m_step if best != upper else best
-                m_step = (upper-lower) // self.step
+                m_step = min((upper-lower) // self.step, m_step - 1)
 
             n_features_to_select = best
             features = self.mean_rankings_[n_features_to_select]
