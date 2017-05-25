@@ -167,7 +167,7 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=1, timeout=1*60*60,
+             seed, folds=10, n_jobs=-1, timeout=1*60*60,
              results_file="ExperimentResults.csv"):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
@@ -213,7 +213,8 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
             elif str(sel.get_params()["step"]).startswith("log"):
                 feature_num = X.shape[1]
                 log_base = int(sel.get_params()["step"].split("-")[1])
-                log_steps = math.log(feature_num, log_base) * log_base // 1
+                log_steps = (math.log(feature_num, (log_base+1)/2) *
+                             log_base // 1)
                 step = feature_num // log_steps
                 sel.set_params(step=step)
 

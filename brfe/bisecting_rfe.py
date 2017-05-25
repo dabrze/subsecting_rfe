@@ -233,8 +233,8 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         else:
             raise ValueError("Invalid 'method' value: %s" % self.method)
 
-        features = features[0]
         # Set final attributes
+        features = self._get_final_features(features)
         self.n_features_ = len(features)
         self.support_ = np.zeros(n_features, dtype=np.bool)
         self.support_[features] = True
@@ -334,6 +334,21 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 self._get_cv_results(features, cv, X, y, scorer)
 
         return self.mean_scores_[mid+1] - self.mean_scores_[mid]
+
+    def _get_final_features(self, features):
+        n_to_select = len(features[0])
+
+        summed_ranks = collections.defaultdict(lambda: 0)
+        for ranking in features:
+            for pos in range(len(ranking)):
+                summed_ranks[ranking[pos]] += pos
+
+        mean_cv_ranking = []
+        for feature, summed_rank in sorted(summed_ranks.items(),
+                                           key=operator.itemgetter(1)):
+            mean_cv_ranking.append(feature)
+
+        return mean_cv_ranking[-n_to_select:]
 
     @if_delegate_has_method(delegate='estimator')
     def predict(self, X):
