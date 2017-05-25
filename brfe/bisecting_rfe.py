@@ -21,15 +21,15 @@ from sklearn.metrics.scorer import check_scoring
 from sklearn.feature_selection.base import SelectorMixin
 
 
-def _single_fit(brfe, features, X, y, train, test, scorer):
+def _single_fit(brfe, features, X, y, train, test, scorer, fold):
     """
     Return the score and feature ranking for a fit across one fold.
     """
     X_train, y_train = _safe_split(brfe.estimator, X, y, train)
     X_test, y_test = _safe_split(brfe.estimator, X, y, test, train)
 
-    return brfe._fit_rank_test(features, X_train, y_train, X_test, y_test,
-                               scorer)
+    return brfe._fit_rank_test(features[fold], X_train, y_train, X_test,
+                               y_test, scorer)
 
 
 class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
@@ -61,8 +61,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         
         - "subsect", to divide each surrounding of max with with step 
         additional points,
-        - "bisect", to perform bisection,
-        - "linear" to perform standarnd steps from max features downwards.
+        - "bisect", to perform bisection.
 
     cv : int, cross-validation generator or an iterable, optional
         Determines the cross-validation splitting strategy.
@@ -141,13 +140,17 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
         cv = check_cv(self.cv, y, is_classifier(self.estimator))
         scorer = check_scoring(self.estimator, scoring=self.scoring)
-        n_features = X.shape[1]
+        n_features = int(X.shape[1])
 
         self.grid_scores_ = dict()
         self.mean_scores_ = dict()
         self.rankings_ = dict()
-        self.mean_rankings_ = dict()
-        self.mean_rankings_[n_features] = list(range(n_features))
+        self.rankings_[n_features] = []
+        self.rankings_[n_features + 1] = []
+
+        for fold in range(cv.n_splits):
+            self.rankings_[n_features].append(list(range(n_features)))
+            self.rankings_[n_features + 1].append(list(range(n_features)))
 
         if self.method == "bisect":
             # Initial values
@@ -155,7 +158,6 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             upper = n_features
             self.mean_scores_[0] = float("-inf")
             self.mean_scores_[n_features + 1] = float("-inf")
-            self.mean_rankings_[n_features+1] = list(range(n_features))
 
             while upper - lower > 1:
                 mid = (upper + lower) // 2
@@ -181,30 +183,8 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 if self.mean_scores_[lower] > self.mean_scores_[upper] \
                 else upper
 
-            features = self._top_features(self.mean_rankings_[upper],
+            features = self._top_features(self.rankings_[upper],
                                           n_features_to_select)
-        elif self.method == "linear":
-            previous_feat_num = n_features
-            feat_num = n_features
-
-            while feat_num > 0:
-                features = self._top_features(self.mean_rankings_[previous_feat_num], feat_num)
-                self.grid_scores_[feat_num], self.rankings_[feat_num], \
-                self.mean_scores_[feat_num], self.mean_rankings_[feat_num] \
-                    = self._get_cv_results(features, cv, X, y, scorer)
-
-                feat_num -= self.step
-
-            # Find lowest number of features with max score
-            best_feat_num = 1
-            best_feat_score = float("-inf")
-            for feat_num in sorted(self.mean_rankings_, reverse=True):
-                if self.mean_scores_[feat_num] >= best_feat_score:
-                    best_feat_score = self.mean_scores_[feat_num]
-                    best_feat_num = feat_num
-
-            n_features_to_select = best_feat_num
-            features = self.mean_rankings_[n_features_to_select]
         elif self.method == "subsect":
             if self.step < 2:
                 raise ValueError("Step for method='subsect' must be >= 2")
@@ -218,9 +198,10 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 m_step = 1
 
             self.mean_scores_[0] = float("-inf")
-            features = self._top_features(self.mean_rankings_[n_features], n_features)
+            features = self._top_features(self.rankings_[n_features],
+                                          n_features)
             self.grid_scores_[upper], self.rankings_[upper], \
-            self.mean_scores_[upper], self.mean_rankings_[upper] \
+            self.mean_scores_[upper] \
                 = self._get_cv_results(features, cv, X, y, scorer)
 
             while m_step > 0:
@@ -228,9 +209,10 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 previous_mid = upper
 
                 for mid in mids:
-                    features = self._top_features(self.mean_rankings_[previous_mid], mid)
+                    features = self._top_features(self.rankings_[previous_mid],
+                                                  mid)
                     self.grid_scores_[mid], self.rankings_[mid], \
-                    self.mean_scores_[mid], self.mean_rankings_[mid] \
+                    self.mean_scores_[mid] \
                         = self._get_cv_results(features, cv, X, y, scorer)
                     previous_mid = mid
 
@@ -247,24 +229,16 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 m_step = min((upper-lower) // self.step, m_step - 1)
 
             n_features_to_select = best
-            features = self.mean_rankings_[n_features_to_select]
+            features = self.rankings_[n_features_to_select]
         else:
             raise ValueError("Invalid 'method' value: %s" % self.method)
 
+        features = features[0]
         # Set final attributes
         self.n_features_ = len(features)
         self.support_ = np.zeros(n_features, dtype=np.bool)
         self.support_[features] = True
-        self.ranking_ = np.zeros(n_features, dtype=np.int)
-
-        for feat_num in sorted(self.mean_rankings_, reverse=True):
-            if feat_num == self.n_features_:
-                break
-
-            self.ranking_[self.mean_rankings_[feat_num]] = feat_num
-
-            for pos, feat_idx in enumerate(self.mean_rankings_[feat_num]):
-                self.ranking_[feat_idx] -= pos
+        self.ranking_ = features
 
         self.estimator_ = clone(self.estimator)
         self.estimator_.fit(self.transform(X), y)
@@ -282,25 +256,16 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                               delayed(_single_fit)
 
         mid_scores_and_ranks = parallel(func(self, features, X, y, train,
-                                             test, scorer)
-                                        for train, test in cv.split(X, y))
+                                             test, scorer, fold)
+                                        for fold, (train, test) in
+                                        enumerate(cv.split(X, y)))
         cv_scores, cv_ranks = map(list, zip(*mid_scores_and_ranks))
         mean_cv_score = np.mean(cv_scores, axis=0)
 
         if self.verbose > 1:
             print("Mean cv-score:", mean_cv_score)
 
-        summed_ranks = collections.defaultdict(lambda: 0)
-        for ranking in cv_ranks:
-            for pos in range(len(ranking)):
-                summed_ranks[ranking[pos]] += pos
-
-        mean_cv_ranking = []
-        for feature, summed_rank in sorted(summed_ranks.items(),
-                                           key=operator.itemgetter(1)):
-            mean_cv_ranking.append(feature)
-
-        return cv_scores, cv_ranks, mean_cv_score, mean_cv_ranking
+        return cv_scores, cv_ranks, mean_cv_score
 
     def _fit_rank_test(self, features, X_train, y_train, X_test, y_test,
                        scorer):
@@ -348,19 +313,24 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         ranking are first summed, then the top-k features with the best summed
         rank are returned.
         """
-        return np.asarray(ranks[-k:])
+        new_ranks = []
+
+        for rank_list in ranks:
+            new_ranks.append(np.asarray(rank_list[-k:]))
+
+        return new_ranks
 
     def _discrete_derivative(self, mid, upper, cv, X, y, scorer):
         if mid+1 not in self.mean_scores_:
-            features = self._top_features(self.mean_rankings_[upper], mid+1)
+            features = self._top_features(self.rankings_[upper], mid+1)
             self.grid_scores_[mid+1], self.rankings_[mid+1], \
-            self.mean_scores_[mid+1], self.mean_rankings_[mid+1] = \
+            self.mean_scores_[mid+1] = \
                 self._get_cv_results(features, cv, X, y, scorer)
 
         if mid not in self.mean_scores_:
-            features = self._top_features(self.mean_rankings_[mid+1], mid)
+            features = self._top_features(self.rankings_[mid+1], mid)
             self.grid_scores_[mid], self.rankings_[mid],\
-            self.mean_scores_[mid], self.mean_rankings_[mid] = \
+            self.mean_scores_[mid] = \
                 self._get_cv_results(features, cv, X, y, scorer)
 
         return self.mean_scores_[mid+1] - self.mean_scores_[mid]
