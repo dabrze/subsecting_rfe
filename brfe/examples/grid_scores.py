@@ -8,7 +8,7 @@ from brfe.bisecting_rfe import BisectingRFE
 
 X, y = make_friedman1(n_samples=100, n_features=10, random_state=0)
 estimator = SVR(kernel="linear")
-selector = BisectingRFE(estimator, cv=5)
+selector = BisectingRFE(estimator, step=3, method="subsect", cv=5)
 selector = selector.fit(X, y)
 
 print(selector.n_features_)
