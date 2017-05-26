@@ -60,11 +60,9 @@ if __name__ == '__main__':
                         log_steps = math.log(feature_num, 2) // 1
                         step = int(feature_num // log_steps)
                     else:
-                        log_steps = math.log(feature_num, 2) // 1
                         log_base = int(selector.split("-")[2])
-                        log_steps = log_steps = (math.log(feature_num,
-                                                          (log_base+1)/2)
-                                                 * log_base // 1)
+                        log_steps = (math.log(feature_num, (log_base+1)/2.0) *
+                             log_base // 1)
                         step = int(feature_num // log_steps)
 
                     for index, fold in folds.iterrows():

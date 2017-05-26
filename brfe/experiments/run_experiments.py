@@ -23,30 +23,25 @@ SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 
 selectors = {
-    # "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
-    "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
+    "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
+    # "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
     # "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
-    "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    # "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
     # "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    "RFE-log-5": RFECV(None, step="log-5", cv=5, n_jobs=1),
+    # "RFE-log-5": RFECV(None, step="log-5", cv=5, n_jobs=1),
     # "RFE-log-10": RFECV(None, step="log-10", cv=5, n_jobs=1),
     # "RFE-log": RFECV(None, step="log", cv=5, n_jobs=1)
              }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    # "Random Forest": RandomForestClassifier(n_estimators=30,
-    #                                                    max_features=0.3,
-    #                                                    n_jobs=-1,
-    #                                                    random_state=SEED),
-               "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
-               "Logistic Regression": LogisticRegression(random_state=SEED,
-                                                         n_jobs=-1)}
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+                                            n_jobs=-1, random_state=SEED),
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1)}
 
 if __name__ == '__main__':
     for file in glob.glob(DATA_PATH):
         filename = os.path.basename(file)
-        if filename != "colon.mat":
-            continue
 
         logging.info(filename)
         mat = scipy.io.loadmat(file)
