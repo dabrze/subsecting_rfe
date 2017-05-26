@@ -47,9 +47,7 @@ classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        random_state=SEED)}
 
 if __name__ == '__main__':
-    for file_pair in [(X_SMALL_DATA_PATH, Y_SMALL_DATA_PATH),
-                      (X_DATA_PATH, Y_DATA_PATH)
-                      ]:
+    for file_pair in [(X_SMALL_DATA_PATH, Y_SMALL_DATA_PATH)]:
         filename = os.path.basename(file_pair[0])
         logging.info(filename)
         X = pd.read_csv(file_pair[0], compression="gzip", index_col=0,
@@ -68,4 +66,5 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=None, results_file="CaseStudy.csv")
+                             SEED, timeout=None, results_file="CaseStudy.csv",
+                             write_selected=True)

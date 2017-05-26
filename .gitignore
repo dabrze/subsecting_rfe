@@ -100,8 +100,6 @@ ENV/
 /brfe/experiments/results
 /brfe/articles
 /brfe/experiments/results
-/brfe/data/pdb_blobs_y_small.csv
 /brfe/data/pdb_blobs_X.csv
-/brfe/data/pdb_blobs_X_small.csv
 /brfe/data/pdb_blobs_y.csv
 .Rproj.user

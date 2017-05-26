@@ -30,7 +30,8 @@ class Evaluation:
     """
     def __init__(self, dataset_name, selector_name, X, y, classifier,
                  selector, scorer, processing_time, selected_feature_num,
-                 y_true, y_pred, grid_scores, selected_features):
+                 y_true, y_pred, grid_scores, selected_features,
+                 write_selected=False):
         self.dataset_name = dataset_name
         self.dataset_stats = DatasetStatistics(X, y)
         self.selector_name = selector_name
@@ -42,6 +43,7 @@ class Evaluation:
         self.y_true = y_true
         self.y_pred = y_pred
         self.selected_features = selected_features
+        self.write_selected = write_selected
         self.processing_time = processing_time
         self.accuracy = metrics.accuracy_score(y_true, y_pred)
         self.macro_recall = metrics.recall_score(y_true, y_pred,
@@ -106,7 +108,8 @@ class Evaluation:
                                  "Macro recall",
                                  "Kappa",
                                  "G-mean",
-                                 "Grid scores"
+                                 "Grid scores",
+                                 "Selected features"
                                  ])
 
             writer.writerow([self.start_date_time,
@@ -127,7 +130,9 @@ class Evaluation:
                              self.macro_recall,
                              self.kappa,
                              self.gmean,
-                             self.grid_scores
+                             self.grid_scores,
+                             self.selected_features if self.write_selected
+                             else None
                              ])
 
 
@@ -168,13 +173,13 @@ class DatasetStatistics:
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
              seed, folds=10, n_jobs=-1, timeout=1*60*60,
-             results_file="ExperimentResults.csv"):
+             results_file="ExperimentResults.csv", write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
     try:
         evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                                 scorer, X, y, train, test)
+                                 scorer, X, y, train, test, write_selected)
             for train, test in cv.split(X, y))
     except Exception as ex:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
@@ -195,7 +200,7 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
 
 
 def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
-                train, test):
+                train, test, write_selected):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
 
@@ -238,7 +243,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
 
     return Evaluation(dataset, selector_name, X, y, classifier, selector,
                       scorer, training_time, selected_feature_num, y_true,
-                      y_pred, grid_scores, selected_features)
+                      y_pred, grid_scores, selected_features, write_selected)
 
 
 def g_mean(y_true, y_pred, labels=None, correction=0.001):

@@ -5,14 +5,12 @@
 import os
 import pandas as pd
 import ast
-import seaborn as sns
 import math
 import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S')
 
-sns.set_style("whitegrid")
 DATA_PATH = os.path.join(os.path.dirname(__file__),
                          "../experiments/results")
 DATA_FILE = "Benchmarks.csv"
