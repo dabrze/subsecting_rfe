@@ -97,9 +97,8 @@ ENV/
 /.idea/workspace.xml
 
 # Custom
-/brfe/experiments/results
-/brfe/articles
-/brfe/experiments/results
-/brfe/data/pdb_blobs_X.csv
-/brfe/data/pdb_blobs_y.csv
+/srfe/experiments/results
+/srfe/articles
+/srfe/data/pdb_blobs_X.csv
+/srfe/data/pdb_blobs_y.csv
 .Rproj.user
