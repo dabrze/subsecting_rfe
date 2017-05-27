@@ -16,7 +16,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
-from brfe.bisecting_rfe import BisectingRFE
+from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
 SEED = 23
@@ -30,10 +30,10 @@ Y_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
                                  "../data/pdb_blobs_y_small.csv")
 
 selectors = {
-    "3-SRFE": BisectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
-    "5-SRFE": BisectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
-    "10-SRFE": BisectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
-    "BRFE": BisectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
+    "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
+    "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
+    "BRFE": SubsectingRFE(None, method="bisect", cv=5, n_jobs=1),
     "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
     "RFE-log-5": RFECV(None, step="log-5", cv=5, n_jobs=1),
     "RFE-log-10": RFECV(None, step="log-10", cv=5, n_jobs=1),

@@ -6,7 +6,7 @@ from sklearn.datasets import make_friedman1, make_classification
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVR
 
-from brfe.bisecting_rfe import BisectingRFE
+from srfe.subsecting_rfe import SubsectingRFE
 from unittest import TestCase
 
 
@@ -34,7 +34,7 @@ class TestBRFE(TestCase):
 
     def test_simple_brfe(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, method="subsect", step=2, cv=5)
+        selector = SubsectingRFE(estimator, method="subsect", step=2, cv=5)
         selector = selector.fit(self.X, self.y)
 
         self.assertEqual(selector.n_features_, 6)
@@ -46,7 +46,7 @@ class TestBRFE(TestCase):
 
     def test_derivative_brfe(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, cv=5, method="bisect")
+        selector = SubsectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X, self.y)
 
         self.assertEqual(selector.n_features_, 6)
@@ -58,7 +58,7 @@ class TestBRFE(TestCase):
 
     def test_grid_scores(self):
         estimator = SVR(kernel="linear")
-        selector = BisectingRFE(estimator, cv=5, method="bisect")
+        selector = SubsectingRFE(estimator, cv=5, method="subsect")
         selector = selector.fit(self.X, self.y)
 
         self.assertDictEqual(selector.grid_scores_,
@@ -80,7 +80,7 @@ class TestBRFE(TestCase):
 
     def test_classification(self):
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, method="bisect")
+        selector = SubsectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_c, self.y_c)
 
         self.assertEqual(selector.n_features_, 5)
@@ -92,25 +92,25 @@ class TestBRFE(TestCase):
 
     def test_limits(self):
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, step=3)
+        selector = SubsectingRFE(estimator, cv=5, step=3)
         selector = selector.fit(self.X_l, self.y_l)
 
         self.assertEqual(selector.n_features_, 1)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, method="bisect")
+        selector = SubsectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_l, self.y_l)
 
         self.assertEqual(selector.n_features_, 1)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, step=3)
+        selector = SubsectingRFE(estimator, cv=5, step=3)
         selector = selector.fit(self.X_r, self.y_r)
 
         self.assertEqual(selector.n_features_, 10)
 
         estimator = RandomForestClassifier(random_state=23, max_features=None)
-        selector = BisectingRFE(estimator, cv=5, method="bisect")
+        selector = SubsectingRFE(estimator, cv=5, method="bisect")
         selector = selector.fit(self.X_r, self.y_r)
 
         self.assertEqual(selector.n_features_, 10)

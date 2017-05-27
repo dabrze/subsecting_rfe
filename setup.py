@@ -1,11 +1,11 @@
 from setuptools import setup
 
-NAME = "brfe"
-DESCRIPTION = "Bisecting Recursive Feature Elimination"
+NAME = "srfe"
+DESCRIPTION = "Subsecting Recursive Feature Elimination"
 KEYWORDS = "Feature Selection Python"
 AUTHOR = "Dariusz Brzezinski"
 AUTHOR_EMAIL = "dariusz.brzezinski@cs.put.poznan.pl"
-URL = "https://github.com/dabrze/bisecting_rfe"
+URL = "https://github.com/dabrze/subsecting_rfe"
 VERSION = "1.0.0"
 
 with open('requirements.txt','r') as req_file:
@@ -19,7 +19,7 @@ setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     url=URL,
-    packages=['brfe'],
+    packages=['srfe'],
     install_requires=requirements,
     build_requires=['numpy'],
     setup_requires=['numpy'],

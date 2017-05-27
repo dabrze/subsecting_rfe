@@ -32,7 +32,7 @@ def _single_fit(brfe, features, X, y, train, test, scorer, fold):
                                y_test, scorer)
 
 
-class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
+class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     """Feature selection with bisecting recursive feature elimination.
 
     Parameters
@@ -114,7 +114,7 @@ class BisectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     estimator_ : object
         The external estimator fit on the reduced dataset.
     """
-    def __init__(self, estimator, step=1, method="subsect", cv=None,
+    def __init__(self, estimator, step=5, method="subsect", cv=None,
                  scoring=None, stabilize=False, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.method = method

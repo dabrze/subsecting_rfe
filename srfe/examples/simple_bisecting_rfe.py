@@ -5,11 +5,11 @@
 from sklearn.datasets import make_friedman1
 from sklearn.feature_selection import RFECV
 from sklearn.svm import SVR
-from brfe.bisecting_rfe import BisectingRFE
+from srfe.subsecting_rfe import SubsectingRFE
 
-X, y = make_friedman1(n_samples=50, n_features=10, random_state=0)
+X, y = make_friedman1(n_samples=100, n_features=10, random_state=0)
 estimator = SVR(kernel="linear")
-selector = BisectingRFE(estimator, step=3, method="subsect", cv=5)
+selector = SubsectingRFE(estimator, step=2, method="subsect", cv=5)
 selector = selector.fit(X, y)
 
 print(selector.n_features_)
