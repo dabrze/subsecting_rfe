@@ -115,13 +115,12 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         The external estimator fit on the reduced dataset.
     """
     def __init__(self, estimator, step=5, method="subsect", cv=None,
-                 scoring=None, stabilize=False, verbose=0, n_jobs=1):
+                 scoring=None, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.method = method
         self.step = step
         self.cv = cv
         self.scoring = scoring
-        self.stabilize = stabilize
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -226,7 +225,11 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
                 lower = best - m_step if best - m_step > 0 else best
                 upper = best + m_step if best != upper else best
-                m_step = min((upper-lower) // self.step, m_step - 1)
+
+                if m_step > 1 and (upper-lower) // self.step == 0:
+                    m_step = 1
+                else:
+                    m_step = min((upper-lower) // self.step, m_step - 1)
 
             n_features_to_select = best
             features = self.rankings_[n_features_to_select]
@@ -234,12 +237,11 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             raise ValueError("Invalid 'method' value: %s" % self.method)
 
         # Set final attributes
-        features = self._get_final_features(X, y, features)
+        features, ranking = self._get_final_features(X, y, features)
         self.n_features_ = len(features)
         self.support_ = np.zeros(n_features, dtype=np.bool)
         self.support_[features] = True
-        self.ranking_ = features
-
+        self.ranking_ = ranking
         self.estimator_ = clone(self.estimator)
         self.estimator_.fit(self.transform(X), y)
 
@@ -339,57 +341,54 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         n_to_select = len(features[0])
         n_features = X.shape[1]
 
-        if self.stabilize:
-            summed_ranks = collections.defaultdict(lambda: 0)
-            for ranking in features:
-                for pos in range(len(ranking)):
-                    summed_ranks[ranking[pos]] += pos
+        previous_feat_num = n_features
+        rerun_rankings = dict()
+        rerun_rankings[n_features] = list(range(n_features))
+        steps = []
+        upper = n_features
+        mid = n_features
 
-            mean_cv_ranking = []
-            for feature, summed_rank in sorted(summed_ranks.items(),
-                                               key=operator.itemgetter(1)):
-                mean_cv_ranking.append(feature)
-
-            return mean_cv_ranking[-n_to_select:]
+        if self.method == "bisect":
+            while mid > n_to_select:
+                steps.append(mid)
+                mid = (upper + n_to_select) // 2
+                upper = mid
+            steps.append(n_to_select)
         else:
-            previous_feat_num = n_features
-            rerun_rankings = dict()
-            rerun_rankings[n_features] = list(range(n_features))
-            steps = []
-            upper = n_features
-            mid = n_features
+            steps.append(upper)
+            m_step = (upper - n_to_select) // self.step
 
-            if self.method == "bisect":
-                while mid > n_to_select:
-                    steps.append(mid)
-                    mid = (upper + n_to_select) // 2
-                    upper = mid
-                steps.append(n_to_select)
-            else:
-                steps.append(upper)
-                m_step = (upper - n_to_select) // self.step
+            if m_step == 0:
+                m_step = 1
 
-                if m_step == 0:
-                    m_step = 1
+            while m_step > 0:
+                mids = [m for m in
+                        range(upper - m_step, n_to_select + m_step - 1,
+                              -m_step)]
 
-                while m_step > 0:
-                    mids = [m for m in
-                            range(upper - m_step, n_to_select + m_step - 1,
-                                  -m_step)]
+                steps.extend(mids)
+                upper = n_to_select + m_step
+                m_step = min((upper - n_to_select) // self.step, m_step - 1)
+            steps.append(n_to_select)
 
-                    steps.extend(mids)
-                    upper = n_to_select + m_step
-                    m_step = min((upper - n_to_select) // self.step, m_step - 1)
-                steps.append(n_to_select)
+        for feat_num in steps:
+            rerun_features = np.asarray(rerun_rankings[
+                                            previous_feat_num][-feat_num:])
+            score, rerun_rankings[feat_num] = self._fit_rank_test(
+                rerun_features, X, y, None, None, None)
+            previous_feat_num = feat_num
 
-            for feat_num in steps:
-                rerun_features = np.asarray(rerun_rankings[
-                                                previous_feat_num][-feat_num:])
-                score, rerun_rankings[feat_num] = self._fit_rank_test(
-                    rerun_features, X, y, None, None, None)
-                previous_feat_num = feat_num
+        ranking = np.zeros(n_features, dtype=np.int)
+        for feat_num in sorted(rerun_rankings, reverse=True):
+            if feat_num == n_to_select:
+                break
 
-            return rerun_rankings[n_to_select]
+            ranking[rerun_rankings[feat_num]] = feat_num
+
+            for pos, feat_idx in enumerate(rerun_rankings[feat_num]):
+                ranking[feat_idx] -= pos
+
+        return rerun_rankings[n_to_select], ranking
 
     @if_delegate_has_method(delegate='estimator')
     def predict(self, X):

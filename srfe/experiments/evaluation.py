@@ -4,8 +4,9 @@
 
 import os
 import csv
-import math
+import ast
 import time
+import math
 import logging
 import warnings
 
@@ -179,8 +180,9 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
     try:
         evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                                 scorer, X, y, train, test, write_selected)
-            for train, test in cv.split(X, y))
+                                 scorer, X, y, train, test, write_selected,
+                                 fold, results_file)
+            for fold, (train, test) in enumerate(cv.split(X, y)))
     except Exception as ex:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
                                 selector, scorer, timeout, "error", [1], [0],
@@ -199,8 +201,27 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
         evaluation.write_to_csv(results_file)
 
 
+def _step_num_from_results(dataset, classifier, selector, results_file, fold):
+    clf_str = str(classifier).replace('\n', ' ').replace('\r', '')
+    file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                  "results", results_file)
+    df = pd.read_csv(file_path)
+    selector_mapping = {
+        "RFE-log-3": "3-SRFE",
+        "RFE-log-5": "5-SRFE",
+        "RFE-log-10": "10-SRFE",
+        "RFE-log": "BRFE",
+    }
+
+    folds = df[(df["Feature selector"] == selector_mapping[selector]) &
+               (df["Dataset"] == dataset) &
+               (df["Classifier"].str.replace('\n', ' ').str.replace('\r', '')
+                == clf_str)]["Grid scores"]
+    grid_scores = ast.literal_eval(folds.iloc[fold])
+    return len(grid_scores)
+
 def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
-                train, test, write_selected):
+                train, test, write_selected, fold, results_file):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
 
@@ -210,17 +231,12 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
         sel = clone(selector)
         sel.set_params(estimator=clone(classifier), scoring=scorer)
         if "step" in sel.get_params():
-            if sel.get_params()["step"] == "log":
+            if sel.get_params()["step"] == "custom":
                 feature_num = X.shape[1]
-                log_steps = math.log(feature_num, 2) // 1
-                step = feature_num // log_steps
-                sel.set_params(step=step)
-            elif str(sel.get_params()["step"]).startswith("log"):
-                feature_num = X.shape[1]
-                log_base = int(sel.get_params()["step"].split("-")[1])
-                log_steps = (math.log(feature_num, (log_base+1)/2.0) *
-                             log_base // 1)
-                step = feature_num // log_steps
+                srfe_step_num = _step_num_from_results(dataset, classifier,
+                                                       selector_name,
+                                                       results_file, fold)
+                step = feature_num // srfe_step_num + 1
                 sel.set_params(step=step)
 
         clf = make_pipeline(StandardScaler(), sel)

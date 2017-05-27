@@ -29,17 +29,19 @@ X_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
 Y_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
                                  "../data/pdb_blobs_y_small.csv")
 
-selectors = {
+srfe_selectors = {
     "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
     "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
     "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
     "BRFE": SubsectingRFE(None, method="bisect", cv=5, n_jobs=1),
-    "RFE-log-3": RFECV(None, step="log-3", cv=5, n_jobs=1),
-    "RFE-log-5": RFECV(None, step="log-5", cv=5, n_jobs=1),
-    "RFE-log-10": RFECV(None, step="log-10", cv=5, n_jobs=1),
+}
+rfe_selectors = {
+    "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=1),
-    "RFE-log": RFECV(None, step="log", cv=5, verbose=0, n_jobs=1)
-             }
+    "RFE-log": RFECV(None, step="custom", cv=5, verbose=0, n_jobs=1)
+}
 scorers = {"Accuracy": "accuracy"}
 classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        max_features=0.3,
@@ -61,10 +63,20 @@ if __name__ == '__main__':
                          scorers[scorer], X, y, SEED, timeout=None,
                          results_file="CaseStudy.csv")
 
-                for selector in selectors:
+                # Subsecting and Bisecting RFE
+                for selector in srfe_selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
-                    evaluate(filename, selector, selectors[selector],
+                    evaluate(filename, selector, srfe_selectors[selector],
+                             classifiers[classifier], scorers[scorer], X, y,
+                             SEED, timeout=None, results_file="CaseStudy.csv",
+                             write_selected=True)
+
+                # Standard RFE equivalents
+                for selector in rfe_selectors:
+                    logging.info("Evaluating %s using %s scored with %s",
+                                 selector, classifier, scorer)
+                    evaluate(filename, selector, rfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
                              SEED, timeout=None, results_file="CaseStudy.csv",
                              write_selected=True)

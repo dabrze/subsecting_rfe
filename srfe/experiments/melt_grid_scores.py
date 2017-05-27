@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import ast
 import math
+from evaluation import _step_num_from_results
 import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s',
@@ -17,7 +18,8 @@ DATA_FILE = "Benchmarks.csv"
 RESULT_FILE = "GridScores.csv"
 
 if __name__ == '__main__':
-    df = pd.read_csv(os.path.join(DATA_PATH, DATA_FILE))
+    results_file = os.path.join(DATA_PATH, DATA_FILE)
+    df = pd.read_csv(results_file)
 
     datasets = df.loc[:, "Dataset"].unique()
     selectors = df.loc[:, "Feature selector"].unique()
@@ -54,18 +56,13 @@ if __name__ == '__main__':
                 else:
                     feature_num = folds["Feature num"].iloc[0]
 
-                    if selector == "RFE-log":
-                        log_steps = math.log(feature_num, 2) // 1
-                        step = int(feature_num // log_steps)
-                    else:
-                        log_base = int(selector.split("-")[2])
-                        log_steps = (math.log(feature_num, (log_base+1)/2.0) *
-                             log_base // 1)
-                        step = int(feature_num // log_steps)
-
                     for index, fold in folds.iterrows():
                         score_list = ast.literal_eval(fold["Grid scores"])
-                        feature_list = list(range(feature_num, 0, -step))
+                        step_num = _step_num_from_results(dataset, classifier,
+                                                      selector, results_file,
+                                                      index % folds.shape[0])
+                        step = feature_num // step_num + 1
+                        feature_list = list(range(feature_num, 0, -int(step)))
                         if feature_list[-1] > 1:
                             feature_list.append(1)
                         feature_list = list(reversed(feature_list))

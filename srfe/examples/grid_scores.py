@@ -13,4 +13,5 @@ selector = selector.fit(X, y)
 
 print(selector.n_features_)
 print(selector.ranking_)
+print(selector.support_)
 print(selector.grid_scores_)
