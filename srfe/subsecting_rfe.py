@@ -115,12 +115,13 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         The external estimator fit on the reduced dataset.
     """
     def __init__(self, estimator, step=5, method="subsect", cv=None,
-                 scoring=None, verbose=0, n_jobs=1):
+                 scoring=None, early_stopping=None, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.method = method
         self.step = step
         self.cv = cv
         self.scoring = scoring
+        self.early_stopping = early_stopping
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -141,6 +142,10 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         cv = check_cv(self.cv, y, is_classifier(self.estimator))
         scorer = check_scoring(self.estimator, scoring=self.scoring)
         n_features = int(X.shape[1])
+        if self.early_stopping is not None:
+            early_stop = int(self.early_stopping)
+        else:
+            early_stop = float("inf")
 
         self.grid_scores_ = dict()
         self.mean_scores_ = dict()
@@ -158,8 +163,9 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             # Initial values
             lower = 0
             upper = n_features
+            it = 0
 
-            while upper - lower > 1:
+            while upper - lower > 1 and it < early_stop:
                 mid = (upper + lower) // 2
                 d_upper = self._discrete_derivative(upper, upper, cv, X, y,
                                                     scorer)
@@ -193,6 +199,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             lower = 1
             upper = n_features
             m_step = (upper-lower) // self.step
+            it = 0
 
             if m_step == 0:
                 m_step = 1
@@ -203,7 +210,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             self.mean_scores_[upper] \
                 = self._get_cv_results(features, cv, X, y, scorer)
 
-            while m_step > 0:
+            while m_step > 0 and it < early_stop:
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 previous_mid = upper
 
