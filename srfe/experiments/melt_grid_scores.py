@@ -14,67 +14,73 @@ logging.basicConfig(level=logging.DEBUG,
 
 DATA_PATH = os.path.join(os.path.dirname(__file__),
                          "../experiments/results")
-DATA_FILE = "Benchmarks.csv"
-RESULT_FILE = "GridScores.csv"
 
 if __name__ == '__main__':
-    results_file = os.path.join(DATA_PATH, DATA_FILE)
-    df = pd.read_csv(results_file)
+    for results_file, grid_file in [
+        (os.path.join(DATA_PATH, "Benchmarks.csv"),
+         os.path.join(DATA_PATH, "GridScores.csv")),
+        (os.path.join(DATA_PATH, "CaseStudy.csv"),
+         os.path.join(DATA_PATH, "CaseGridScores.csv"))]:
 
-    datasets = df.loc[:, "Dataset"].unique()
-    selectors = df.loc[:, "Feature selector"].unique()
-    classifiers = df.loc[:, "Classifier"].unique()
-    selectors = selectors[selectors != "All"]
-    result_df = pd.DataFrame()
+        df = pd.read_csv(results_file)
 
-    for dataset in datasets:
-        logging.info("Processing %s" % dataset)
+        datasets = df.loc[:, "Dataset"].unique()
+        selectors = df.loc[:, "Feature selector"].unique()
+        classifiers = df.loc[:, "Classifier"].unique()
+        selectors = selectors[selectors != "All"]
+        result_df = pd.DataFrame()
 
-        for classifier in classifiers:
-            for selector in selectors:
-                melted = None
+        for dataset in datasets:
+            logging.info("Processing %s" % dataset)
 
-                folds = df[(df["Feature selector"] == selector) &
-                           (df["Dataset"] == dataset) &
-                           (df["Classifier"] == classifier)]
+            for classifier in classifiers:
+                for selector in selectors:
+                    melted = None
 
-                if selector in ["BRFE", "3-SRFE", "5-SRFE", "10-SRFE"]:
-                    for index, fold in folds.iterrows():
-                        grid_dict = ast.literal_eval(fold["Grid scores"])
-                        melted = pd.DataFrame(grid_dict)
-                        melted = melted.mean().rename("Accuracy")
+                    folds = df[(df["Feature selector"] == selector) &
+                               (df["Dataset"] == dataset) &
+                               (df["Classifier"] == classifier)]
 
-                        melted = melted.to_frame()
-                        melted.loc[:, "Feature num"] = list(melted.index)
-                        melted.loc[:, "Dataset"] = dataset
-                        melted.loc[:, "Classifier"] = classifier
-                        melted.loc[:, "Fold"] = index % folds.shape[0]
-                        melted.loc[:, "Feature selector"] = selector
+                    if selector in ["BRFE", "3-SRFE", "5-SRFE", "10-SRFE"]:
+                        for index, fold in folds.iterrows():
+                            grid_dict = ast.literal_eval(fold["Grid scores"])
+                            melted = pd.DataFrame(grid_dict)
+                            melted = melted.mean().rename("Accuracy")
 
-                        if melted is not None:
-                            result_df = result_df.append(melted)
-                else:
-                    feature_num = folds["Feature num"].iloc[0]
+                            melted = melted.to_frame()
+                            melted.loc[:, "Feature num"] = list(melted.index)
+                            melted.loc[:, "Dataset"] = dataset
+                            melted.loc[:, "Classifier"] = classifier
+                            melted.loc[:, "Fold"] = index % folds.shape[0]
+                            melted.loc[:, "Feature selector"] = selector
 
-                    for index, fold in folds.iterrows():
-                        score_list = ast.literal_eval(fold["Grid scores"])
-                        step_num = _step_num_from_results(dataset, classifier,
-                                                      selector, results_file,
-                                                      index % folds.shape[0])
-                        step = feature_num // step_num + 1
-                        feature_list = list(range(feature_num, 0, -int(step)))
-                        if feature_list[-1] > 1:
-                            feature_list.append(1)
-                        feature_list = list(reversed(feature_list))
+                            if melted is not None:
+                                result_df = result_df.append(melted)
+                    else:
+                        feature_num = folds["Feature num"].iloc[0]
 
-                        melted = pd.DataFrame({"Accuracy": score_list,
-                                               "Feature num": feature_list})
-                        melted.loc[:, "Dataset"] = dataset
-                        melted.loc[:, "Classifier"] = classifier
-                        melted.loc[:, "Fold"] = index % folds.shape[0]
-                        melted.loc[:, "Feature selector"] = selector
+                        for index, fold in folds.iterrows():
+                            score_list = ast.literal_eval(fold["Grid scores"])
+                            if selector == "RFE-1":
+                                step = 1
+                            else:
+                                step_num = _step_num_from_results(dataset, classifier,
+                                                              selector, results_file,
+                                                              index % folds.shape[0])
+                                step = feature_num // step_num + 1
+                            feature_list = list(range(feature_num, 0, -int(step)))
+                            if feature_list[-1] > 1:
+                                feature_list.append(1)
+                            feature_list = list(reversed(feature_list))
 
-                        if melted is not None:
-                            result_df = result_df.append(melted)
+                            melted = pd.DataFrame({"Accuracy": score_list,
+                                                   "Feature num": feature_list})
+                            melted.loc[:, "Dataset"] = dataset
+                            melted.loc[:, "Classifier"] = classifier
+                            melted.loc[:, "Fold"] = index % folds.shape[0]
+                            melted.loc[:, "Feature selector"] = selector
 
-    result_df.to_csv(os.path.join(DATA_PATH, RESULT_FILE))
+                            if melted is not None:
+                                result_df = result_df.append(melted)
+
+        result_df.to_csv(grid_file)
