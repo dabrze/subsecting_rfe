@@ -32,6 +32,31 @@ class TestBRFE(TestCase):
                                                n_clusters_per_class=2,
                                                shuffle=False, random_state=0)
 
+    def test_early_stopping(self):
+        estimator = SVR(kernel="linear")
+        selector = SubsectingRFE(estimator, method="subsect", step=2, cv=5,
+                                 early_stopping=1)
+        selector = selector.fit(self.X, self.y)
+
+        self.assertEqual(selector.n_features_, 6)
+        self.assertListEqual(list(selector.support_),
+                             [True, True, True, True, True,
+                              False, False, False, True, False])
+        self.assertListEqual(list(selector.ranking_),
+                             [5, 3, 4, 1, 2, 10, 8, 7, 6, 9])
+
+        estimator = SVR(kernel="linear")
+        selector = SubsectingRFE(estimator, method="bisect", step=2, cv=5,
+                                 early_stopping=1)
+        selector = selector.fit(self.X, self.y)
+
+        self.assertEqual(selector.n_features_, 5)
+        self.assertListEqual(list(selector.support_),
+                             [True, True, True, True, True,
+                              False, False, False, False, False])
+        self.assertListEqual(list(selector.ranking_),
+                             [5, 3, 4, 1, 2, 10, 8, 7, 6, 9])
+
     def test_min_srfe(self):
         estimator = SVR(kernel="linear")
         selector = SubsectingRFE(estimator, method="subsect", step=2, cv=5)

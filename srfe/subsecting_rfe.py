@@ -170,6 +170,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 d_upper = self._discrete_derivative(upper, upper, cv, X, y,
                                                     scorer)
                 d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
+                it += 1
 
                 # update interval
                 old_settings = np.seterr(invalid="ignore")
@@ -213,6 +214,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             while m_step > 0 and it < early_stop:
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 previous_mid = upper
+                it += 1
 
                 for mid in mids:
                     features = self._top_features(self.rankings_[previous_mid],
