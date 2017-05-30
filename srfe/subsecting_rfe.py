@@ -167,6 +167,8 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
             while upper - lower > 1 and it < early_stop:
                 mid = (upper + lower) // 2
+                # derivative for n_features can be calculated because
+                # mean_scores_[n_features + 1] was set to float("-inf")
                 d_upper = self._discrete_derivative(upper, upper, cv, X, y,
                                                     scorer)
                 d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
@@ -213,6 +215,8 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
             while m_step > 0 and it < early_stop:
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
+                if mids[-1] > lower:
+                    mids.append(lower)
                 previous_mid = upper
                 it += 1
 
@@ -232,8 +236,11 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                         best_score = self.mean_scores_[feat_num]
                         best = feat_num
 
-                lower = best - m_step if best - m_step > 0 else best
-                upper = best + m_step if best != upper else best
+                lower = best - m_step if best - m_step > lower else lower
+                upper = best + m_step if best + m_step < upper else upper
+                if upper not in self.rankings_:
+                    upper = min(self.rankings_.keys(),
+                                key=lambda x: abs(x-upper))
 
                 if m_step > 1 and (upper-lower) // self.step == 0:
                     m_step = 1

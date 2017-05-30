@@ -27,22 +27,12 @@ srfe_selectors = {
     "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
     "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
     "BRFE": SubsectingRFE(None, method="bisect", cv=5, n_jobs=1),
-
-    "3-SRFE-e": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1, early_stopping=2),
-    "5-SRFE-e": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1, early_stopping=2),
-    "10-SRFE-e": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1, early_stopping=2),
-    "BRFE-e": SubsectingRFE(None, method="bisect", cv=5, n_jobs=1, early_stopping=2),
 }
 rfe_selectors = {
     "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log": RFECV(None, step="custom", cv=5, n_jobs=1),
-
-    "RFE-log-3-e": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log-5-e": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log-10-e": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log-e": RFECV(None, step="custom", cv=5, n_jobs=1),
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
