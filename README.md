@@ -28,6 +28,6 @@ commands to get a copy from GitHub and install all dependencies::
 
 ```
   git clone https://github.com/dabrze/subsecting_rfe.git
-  cd imbalanced-learn
+  cd subsecting_rfe
   pip install .
 ```
