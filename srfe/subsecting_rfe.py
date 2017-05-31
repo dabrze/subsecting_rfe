@@ -236,8 +236,8 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                         best_score = self.mean_scores_[feat_num]
                         best = feat_num
 
-                lower = best - m_step if best - m_step > lower else lower
-                upper = best + m_step if best + m_step < upper else upper
+                lower = best - m_step if best - m_step > 0 else 1
+                upper = best + m_step if best + m_step < n_features else n_features
                 if upper not in self.rankings_:
                     upper = min(self.rankings_.keys(),
                                 key=lambda x: abs(x-upper))
