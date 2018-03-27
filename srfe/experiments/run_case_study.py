@@ -24,10 +24,6 @@ X_DATA_PATH = os.path.join(os.path.dirname(__file__),
                            "../data/pdb_blobs_X.csv")
 Y_DATA_PATH = os.path.join(os.path.dirname(__file__),
                            "../data/pdb_blobs_y.csv")
-X_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
-                                 "../data/pdb_blobs_X_small.csv")
-Y_SMALL_DATA_PATH = os.path.join(os.path.dirname(__file__),
-                                 "../data/pdb_blobs_y_small.csv")
 
 srfe_selectors = {
     "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
@@ -50,7 +46,7 @@ classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
                                                        random_state=SEED)}
 
 if __name__ == '__main__':
-    for file_pair in [(X_SMALL_DATA_PATH, Y_SMALL_DATA_PATH)]:
+    for file_pair in [(X_DATA_PATH, Y_DATA_PATH)]:
         filename = os.path.basename(file_pair[0])
         logging.info(filename)
         X = pd.read_csv(file_pair[0], compression="gzip", index_col=0,
@@ -61,16 +57,16 @@ if __name__ == '__main__':
         for scorer in scorers:
             for classifier in classifiers:
                 evaluate(filename, "All", None, classifiers[classifier],
-                         scorers[scorer], X, y, SEED, timeout=None,
+                         scorers[scorer], X, y, SEED, timeout=3*60*60,
                          results_file="CaseStudy.csv")
 
-                # Subsecting and Bisecting RFE
+                # Subsecting and Fibonacci RFE
                 for selector in srfe_selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=None, results_file="CaseStudy.csv",
+                             SEED, timeout=3*60*60, results_file="CaseStudy.csv",
                              write_selected=True)
 
                 # Standard RFE equivalents
@@ -79,5 +75,5 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, rfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=None, results_file="CaseStudy.csv",
+                             SEED, timeout=3*60*60, results_file="CaseStudy.csv",
                              write_selected=True)
