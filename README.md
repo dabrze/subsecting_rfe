@@ -1,12 +1,13 @@
 # k-Subsecting Recursive Feature Elimination
 
-Source codes and experimental scripts for Bisecting and k-Subsecting
-Recursive Elimination feaure selection methods. Benchmark datasets taken from
+Source codes and experimental scripts for Fibonacci and k-Subsecting
+Recursive Elimination feature selection methods. Benchmark data sets taken from
 the scikit-feature selection repository (http://featureselection.asu.edu/).
 
 Algorithms described in "Bisecting and k-Subsecting Recursive Feature 
 Elimination" by Dariusz Brzezinski and Marcin Kowiel. Detailed experimental 
-results available at: http://www.cs.put.poznan.pl/dbrzezinski/software/SRFE.html
+results available at:
+http://www.cs.put.poznan.pl/dbrzezinski/software/SRFE.html
 
 
 # Installation
@@ -14,17 +15,19 @@ results available at: http://www.cs.put.poznan.pl/dbrzezinski/software/SRFE.html
 
 ## Dependencies
 
-The srfe package was tested to work under Python 2.7 and Python 3.5.
+The srfe package was tested to work under Python 2.7 but should also work
+on Python 3.5.
 
 - scipy
 - numpy
 - pandas
 - scikit-learn
+- lighgbm
 
 ## Installation
 
 Download or clone the repository and run the setup.py file. Use the following
-commands to get a copy from GitHub and install all dependencies::
+commands to get a copy from GitHub and install all dependencies:
 
 ```
   git clone https://github.com/dabrze/subsecting_rfe.git

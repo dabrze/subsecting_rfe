@@ -41,7 +41,7 @@ if __name__ == '__main__':
                                (df["Dataset"] == dataset) &
                                (df["Classifier"] == classifier)]
 
-                    if selector in ["BRFE", "3-SRFE", "5-SRFE", "10-SRFE"]:
+                    if selector in ["FRFE", "3-SRFE", "5-SRFE", "10-SRFE"]:
                         for index, fold in folds.iterrows():
                             grid_dict = ast.literal_eval(fold["Grid scores"])
                             melted = pd.DataFrame(grid_dict)

@@ -5,8 +5,7 @@
 """Bisecting recursive feature elimination for feature ranking"""
 
 import numpy as np
-import operator
-import collections
+import math
 
 from sklearn.utils import check_X_y, safe_sqr
 from sklearn.utils.metaestimators import if_delegate_has_method
@@ -21,15 +20,15 @@ from sklearn.metrics.scorer import check_scoring
 from sklearn.feature_selection.base import SelectorMixin
 
 
-def _single_fit(brfe, features, X, y, train, test, scorer, fold):
+def _single_fit(rfe, features, X, y, train, test, scorer, fold):
     """
     Return the score and feature ranking for a fit across one fold.
     """
-    X_train, y_train = _safe_split(brfe.estimator, X, y, train)
-    X_test, y_test = _safe_split(brfe.estimator, X, y, test, train)
+    X_train, y_train = _safe_split(rfe.estimator, X, y, train)
+    X_test, y_test = _safe_split(rfe.estimator, X, y, test, train)
 
-    return brfe._fit_rank_test(features[fold], X_train, y_train, X_test,
-                               y_test, scorer)
+    return rfe._fit_rank_test(features[fold], X_train, y_train, X_test,
+                              y_test, scorer)
 
 
 class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
@@ -49,24 +48,11 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         Similarly, algorithms based on decision trees also rank feature 
         importance.
 
-    step : int or "bisect", optional (default=1)
-        If greater than or equal to 1, then `step` corresponds to the (integer)
-        number of features to remove at each iteration.
-        If "bisect", then `the algorithm performs bisecting recursive feature
-        elimination.
-
-    method : str, optional, default: "subsect"
-        Tells the algorithm whether how to look for best number of features. 
-        Possible inputs for method are:
-        
-        - "subsect", to divide each surrounding of max with with step 
-        additional points,
-        - "bisect", to perform bisection.
-
     cv : int, cross-validation generator or an iterable, optional
         Determines the cross-validation splitting strategy.
         Possible inputs for cv are:
 
+        - False, to skip crossvalidation
         - None, to use the default 3-fold cross-validation,
         - integer, to specify the number of folds.
         - An object to be used as a cross-validation generator.
@@ -106,7 +92,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         ranking position of the i-th feature. Selected (i.e., estimated 
         best) features are assigned rank 1.
 
-    grid_scores_ : dictionary in the form {feture_num: cv_results}
+    grid_scores_ : dictionary in the form {feature_num: cv_results}
         The cross-validation scores such that ``grid_scores_[k]`` 
         corresponds to a list of CV scores of k features. Correct key values
         ``k`` depend on the bisected feature counts. 
@@ -115,13 +101,12 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         The external estimator fit on the reduced dataset.
     """
     def __init__(self, estimator, step=5, method="subsect", cv=None,
-                 scoring=None, early_stopping=None, verbose=0, n_jobs=1):
+                 scoring=None, verbose=0, n_jobs=1):
         self.estimator = estimator
         self.method = method
         self.step = step
         self.cv = cv
         self.scoring = scoring
-        self.early_stopping = early_stopping
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -142,10 +127,6 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         cv = check_cv(self.cv, y, is_classifier(self.estimator))
         scorer = check_scoring(self.estimator, scoring=self.scoring)
         n_features = int(X.shape[1])
-        if self.early_stopping is not None:
-            early_stop = int(self.early_stopping)
-        else:
-            early_stop = float("inf")
 
         self.grid_scores_ = dict()
         self.mean_scores_ = dict()
@@ -159,41 +140,71 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             self.rankings_[n_features].append(list(range(n_features)))
             self.rankings_[n_features + 1].append(list(range(n_features)))
 
-        if self.method == "bisect":
-            # Initial values
-            lower = 0
-            upper = n_features
-            it = 0
+        if self.method == "fibonacci":
+            a = 1
+            b = n_features
+            interval = (a,b)
+            fibs = self._get_fibonacci_numbers_for_n(b-a)
+            n = len(fibs) - 1
 
-            while upper - lower > 1 and it < early_stop:
-                mid = (upper + lower) // 2
-                # derivative for n_features can be calculated because
-                # mean_scores_[n_features + 1] was set to float("-inf")
-                d_upper = self._discrete_derivative(upper, upper, cv, X, y,
-                                                    scorer)
-                d_mid = self._discrete_derivative(mid, upper, cv, X, y, scorer)
-                it += 1
+            features = self._top_features(self.rankings_[n_features],
+                                          n_features)
+            self.grid_scores_[b], self.rankings_[b], self.mean_scores_[b] \
+                = self._get_cv_results(features, cv, X, y, scorer)
 
-                # update interval
-                old_settings = np.seterr(invalid="ignore")
-                if d_upper * d_mid < 0:
-                    lower = mid
-                elif d_upper * d_mid == 0:
-                    if d_mid > 0:
-                        lower = mid
-                    else:
-                        upper = mid
+            x1 = a + fibs[n - 2]
+            x2 = a + fibs[n - 1]
+
+            features_x1 = self._top_features(self.rankings_[b], x1)
+            self.grid_scores_[x1], self.rankings_[x1], self.mean_scores_[x1] \
+                = self._get_cv_results(features_x1, cv, X, y, scorer)
+
+            features_x2 = self._top_features(self.rankings_[b], x2)
+            self.grid_scores_[x2], self.rankings_[x2], self.mean_scores_[x2] \
+                = self._get_cv_results(features_x2, cv, X, y, scorer)
+
+            y1 = self.mean_scores_[x1]
+            y2 = self.mean_scores_[x2]
+
+            while interval[1] - interval[0] > 1:
+                n = n - 1
+
+                if y1 < y2:
+                    a = x1
+                    b = b
+                    x1 = x2
+                    y1 = y2
+
+                    x2 = a + fibs[n - 1]
+                    if x2 not in self.mean_scores_:
+                        features_x2 = self._top_features(self.rankings_[b], x2)
+                        self.grid_scores_[x2], self.rankings_[x2], \
+                        self.mean_scores_[x2] = \
+                            self._get_cv_results(features_x2, cv, X, y, scorer)
+                    y2 = self.mean_scores_[x2]
                 else:
-                    upper = mid
-                np.seterr(**old_settings)
+                    a = a
+                    b = x2
+                    x2 = x1
+                    y2 = y1
 
-            # Determine final attributes
-            n_features_to_select = lower \
-                if self.mean_scores_[lower] > self.mean_scores_[upper] \
-                else upper
+                    x1 = a + fibs[n - 2]
+                    if x1 not in self.mean_scores_:
+                        features_x1 = self._top_features(self.rankings_[b], x1)
+                        self.grid_scores_[x1], self.rankings_[x1], \
+                        self.mean_scores_[x1] = \
+                            self._get_cv_results(features_x1, cv, X, y, scorer)
+                    y1 = self.mean_scores_[x1]
 
-            features = self._top_features(self.rankings_[upper],
-                                          n_features_to_select)
+                interval = (a, b)
+
+            if y1 < y2:
+                n_features_to_select = x2
+            else:
+                n_features_to_select = x1
+
+            features = self.rankings_[n_features_to_select]
+
         elif self.method == "subsect":
             if self.step < 2:
                 raise ValueError("Step for method='subsect' must be >= 2")
@@ -213,7 +224,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             self.mean_scores_[upper] \
                 = self._get_cv_results(features, cv, X, y, scorer)
 
-            while m_step > 0 and it < early_stop:
+            while m_step > 0:
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 if mids[-1] > lower:
                     mids.append(lower)
@@ -265,6 +276,19 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             print("Final number of features: %d." % self.n_features_)
 
         return self
+
+    @staticmethod
+    def _get_fibonacci_numbers_for_n(n):
+        if n < 1:
+            raise Exception("n cannot be smaller than 0")
+
+        fibs = [0, 1]
+
+        while True:
+            if fibs[-1] > n:
+                return fibs
+            else:
+                fibs.append(fibs[-2] + fibs[-1])
 
     def _get_cv_results(self, features, cv, X, y, scorer):
         if self.n_jobs == 1:
@@ -360,32 +384,9 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         previous_feat_num = n_features
         rerun_rankings = dict()
         rerun_rankings[n_features] = list(range(n_features))
-        steps = []
-        upper = n_features
-        mid = n_features
 
-        if self.method == "bisect":
-            while mid > n_to_select:
-                steps.append(mid)
-                mid = (upper + n_to_select) // 2
-                upper = mid
-            steps.append(n_to_select)
-        else:
-            steps.append(upper)
-            m_step = (upper - n_to_select) // self.step
-
-            if m_step == 0:
-                m_step = 1
-
-            while m_step > 0:
-                mids = [m for m in
-                        range(upper - m_step, n_to_select + m_step - 1,
-                              -m_step)]
-
-                steps.extend(mids)
-                upper = n_to_select + m_step
-                m_step = min((upper - n_to_select) // self.step, m_step - 1)
-            steps.append(n_to_select)
+        steps = [f_num for f_num in sorted(self.mean_scores_, reverse=True)
+                 if f_num >= n_to_select]
 
         for feat_num in steps:
             rerun_features = np.asarray(rerun_rankings[

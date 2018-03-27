@@ -102,3 +102,5 @@ ENV/
 /srfe/data/pdb_blobs_X.csv
 /srfe/data/pdb_blobs_y.csv
 .Rproj.user
+/.idea/codeStyles/codeStyleConfig.xml
+/.idea/other.xml

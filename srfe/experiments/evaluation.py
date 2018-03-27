@@ -18,7 +18,6 @@ from sklearn import metrics
 from sklearn.base import clone
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.utils.multiclass import unique_labels
-from sklearn.utils.fixes import bincount
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics.classification import _prf_divide
 from sklearn.pipeline import make_pipeline
@@ -33,17 +32,23 @@ class Evaluation:
                  selector, scorer, processing_time, selected_feature_num,
                  y_true, y_pred, grid_scores, selected_features,
                  write_selected=False):
+        np.set_printoptions(threshold=1000000)
+
         self.dataset_name = dataset_name
         self.dataset_stats = DatasetStatistics(X, y)
         self.selector_name = selector_name
-        self.classifier = classifier
-        self.selector = selector
+        self.classifier = classifier.__repr__().replace(",", ";")\
+            .replace("\n", " ").replace("\r", "")
+        self.selector = selector.__repr__().replace(",", ";")\
+            .replace("\n", " ").replace("\r", "")
         self.scorer = scorer
         self.feature_num = self.dataset_stats.attributes
         self.selected_feature_num = selected_feature_num
         self.y_true = y_true
         self.y_pred = y_pred
-        self.selected_features = selected_features
+        self.selected_features = \
+            np.array2string(selected_features, max_line_width=1000000)\
+                if selected_features is not None else None
         self.write_selected = write_selected
         self.processing_time = processing_time
         self.accuracy = metrics.accuracy_score(y_true, y_pred)
@@ -58,9 +63,12 @@ class Evaluation:
         else:
             self.start_date_time = "Error"
         if grid_scores is None or isinstance(grid_scores, dict):
-            self.grid_scores = str(grid_scores).replace('\n', ' ').replace('\r', '')
+            self.grid_scores = str(grid_scores).replace('\n', ' ')\
+                .replace('\r', '')
         else:
             self.grid_scores = str(list(grid_scores))
+
+        np.set_printoptions(threshold=1000)
 
     def write_to_csv(self, file_name="ExperimentResults.csv",
                      save_to_folder=os.path.join(os.path.abspath(
@@ -210,11 +218,11 @@ def _step_num_from_results(dataset, classifier, selector, results_file, fold):
         "RFE-log-3": "3-SRFE",
         "RFE-log-5": "5-SRFE",
         "RFE-log-10": "10-SRFE",
-        "RFE-log": "BRFE",
+        "RFE-log": "FRFE",
         "RFE-log-3-e": "3-SRFE-e",
         "RFE-log-5-e": "5-SRFE-e",
         "RFE-log-10-e": "10-SRFE-e",
-        "RFE-log-e": "BRFE-e",
+        "RFE-log-e": "FRFE-e",
     }
 
     folds = df[(df["Feature selector"] == selector_mapping[selector]) &
@@ -300,13 +308,13 @@ def g_mean(y_true, y_pred, labels=None, correction=0.001):
     tp_bins = y_true[tp]
 
     if len(tp_bins):
-        tp_sum = bincount(tp_bins, weights=None, minlength=len(labels))
+        tp_sum = np.bincount(tp_bins, weights=None, minlength=len(labels))
     else:
         # Pathological case
         true_sum = tp_sum = np.zeros(len(labels))
 
     if len(y_true):
-        true_sum = bincount(y_true, weights=None, minlength=len(labels))
+        true_sum = np.bincount(y_true, weights=None, minlength=len(labels))
 
     # Retain only selected labels
     indices = np.searchsorted(sorted_labels, labels[:n_labels])

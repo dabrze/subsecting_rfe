@@ -6,6 +6,7 @@ import os
 import glob
 import scipy.io
 import logging
+from lightgbm import LGBMClassifier
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S')
@@ -26,7 +27,7 @@ srfe_selectors = {
     "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
     "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
     "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
-    "BRFE": SubsectingRFE(None, method="bisect", cv=5, n_jobs=1),
+    "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
 }
 rfe_selectors = {
     "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
@@ -36,10 +37,11 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
-                                            n_jobs=-1, random_state=SEED),
-    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
-    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1)
+    # "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+    #                                         n_jobs=-1, random_state=SEED),
+    # "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
+    # "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1),
+    "GBM": LGBMClassifier(seed=SEED, n_jobs=-1, verbose=-1)
 }
 
 if __name__ == '__main__':
@@ -56,7 +58,7 @@ if __name__ == '__main__':
                          scorers[scorer], X, y, SEED,
                          results_file="Benchmarks.csv")
 
-                # Subsecting and Bisecting RFE
+                # Subsecting and Fibonacci RFE
                 for selector in srfe_selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
