@@ -49,8 +49,7 @@ if __name__ == '__main__':
     for file_pair in [(X_DATA_PATH, Y_DATA_PATH)]:
         filename = os.path.basename(file_pair[0])
         logging.info(filename)
-        X = pd.read_csv(file_pair[0], compression="gzip", index_col=0,
-                        header=0).as_matrix()
+        X = pd.read_csv(file_pair[0], index_col=0, header=0).as_matrix()
         logging.info(os.path.basename(file_pair[1]))
         y = pd.read_csv(file_pair[1], index_col=0, header=0).iloc[:, 0].as_matrix()
 
