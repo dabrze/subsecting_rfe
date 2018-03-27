@@ -15,14 +15,17 @@ http://www.cs.put.poznan.pl/dbrzezinski/software/SRFE.html
 
 ## Dependencies
 
-The srfe package was tested to work under Python 2.7 but should also work
-on Python 3.5.
+The srfe package was tested to work under Python 2.7 and Python 3.5. The main
+packages used are:
 
 - scipy
 - numpy
 - pandas
 - scikit-learn
 - lighgbm
+
+A detailed list of packages with versions used during experiments are in
+`requirements.txt`.
 
 ## Installation
 
