@@ -18,7 +18,7 @@ from sklearn import metrics
 from sklearn.base import clone
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.utils.multiclass import unique_labels
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.metrics.classification import _prf_divide
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import StratifiedKFold
@@ -235,7 +235,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
     y_train, y_test = y[train], y[test]
 
     if selector is None:
-        clf = make_pipeline(StandardScaler(), clone(classifier))
+        clf = make_pipeline(MinMaxScaler(), clone(classifier))
     else:
         sel = clone(selector)
         sel.set_params(estimator=clone(classifier), scoring=scorer)
@@ -248,7 +248,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 step = feature_num // srfe_step_num + 1
                 sel.set_params(step=step)
 
-        clf = make_pipeline(StandardScaler(), sel)
+        clf = make_pipeline(MinMaxScaler(), sel)
 
     start = time.time()
     with warnings.catch_warnings():
