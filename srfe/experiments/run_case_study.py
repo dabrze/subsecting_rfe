@@ -4,6 +4,7 @@
 
 import os
 import glob
+from lightgbm import LGBMClassifier
 import pandas as pd
 import logging
 logging.basicConfig(level=logging.DEBUG,
@@ -40,10 +41,7 @@ rfe_selectors = {
     "RFE-log": RFECV(None, step="custom", cv=5, verbose=0, n_jobs=-1),
 }
 scorers = {"Accuracy": "accuracy"}
-classifiers = {"Random Forest": RandomForestClassifier(n_estimators=30,
-                                                       max_features=0.3,
-                                                       n_jobs=-1,
-                                                       random_state=SEED)}
+classifiers = {"GBM": LGBMClassifier(seed=SEED, n_jobs=-1, verbose=-1)}
 
 if __name__ == '__main__':
     for file_pair in [(X_DATA_PATH, Y_DATA_PATH)]:
