@@ -210,19 +210,16 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
 
 
 def _step_num_from_results(dataset, classifier, selector, results_file, fold):
-    clf_str = str(classifier).replace('\n', ' ').replace('\r', '')
+    clf_str = classifier.__repr__().replace(",", ";").replace("\n", " ").\
+        replace("\r", "")
     file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                                  "results", results_file)
+                             "results", results_file)
     df = pd.read_csv(file_path)
     selector_mapping = {
         "RFE-log-3": "3-SRFE",
         "RFE-log-5": "5-SRFE",
         "RFE-log-10": "10-SRFE",
-        "RFE-log": "FRFE",
-        "RFE-log-3-e": "3-SRFE-e",
-        "RFE-log-5-e": "5-SRFE-e",
-        "RFE-log-10-e": "10-SRFE-e",
-        "RFE-log-e": "FRFE-e",
+        "RFE-log": "FRFE"
     }
 
     folds = df[(df["Feature selector"] == selector_mapping[selector]) &
