@@ -30,8 +30,6 @@ srfe_selectors = {
     "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
 }
 rfe_selectors = {
-    "RFE-1": RFECV(None, step=1, cv=5, verbose=0, n_jobs=-1),
-
     "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
@@ -43,7 +41,7 @@ classifiers = {
                                             n_jobs=-1, random_state=SEED),
     "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
     "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1),
-    "GBM": LGBMClassifier(seed=SEED, n_jobs=-1, verbose=-1)
+    "GBM": LGBMClassifier(seed=SEED, n_jobs=3, verbose=-1)
 }
 
 if __name__ == '__main__':
@@ -56,6 +54,8 @@ if __name__ == '__main__':
 
         for scorer in scorers:
             for classifier in classifiers:
+                logging.info("Evaluating all features using %s scored with %s",
+                             classifier, scorer)
                 evaluate(filename, "All", None, classifiers[classifier],
                          scorers[scorer], X, y, SEED,
                          results_file="Benchmarks.csv")
