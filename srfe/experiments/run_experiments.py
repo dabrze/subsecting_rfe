@@ -12,7 +12,6 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m/%d/%Y %H:%M:%S')
 
 from sklearn.feature_selection import RFECV
-from sklearn.metrics import make_scorer, cohen_kappa_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -41,7 +40,7 @@ classifiers = {
                                             n_jobs=-1, random_state=SEED),
     "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
     "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1),
-    "GBM": LGBMClassifier(seed=SEED, n_jobs=3, verbose=-1)
+    "GBM": LGBMClassifier(seed=SEED, n_jobs=-1, verbose=-1, n_estimators=30)
 }
 
 if __name__ == '__main__':

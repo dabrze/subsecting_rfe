@@ -5,6 +5,7 @@
 import os
 import csv
 import ast
+import multiprocessing
 import time
 import math
 import logging
@@ -181,29 +182,40 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=1*60*60,
-             results_file="ExperimentResults.csv", write_selected=False):
+             seed, folds=10, timeout=1*60*60, results_file="ExperimentResults.csv",
+             write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
+    evaluations = []
 
     try:
-        evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
-            delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                                 scorer, X, y, train, test, write_selected,
-                                 fold, results_file)
-            for fold, (train, test) in enumerate(cv.split(X, y)))
+        for fold, (train, test) in enumerate(cv.split(X, y)):
+            manager = multiprocessing.Manager()
+            return_dict = manager.dict()
+            p = multiprocessing.Process(target=_single_fit,
+                                        args=(dataset, selector_name, selector,
+                                              classifier, scorer, X, y, train,
+                                              test, write_selected, fold,
+                                              results_file, return_dict))
+            p.start()
+            p.join(timeout=timeout)
+            if p.is_alive():
+                p.terminate()
+                p.join()
+                evaluation = Evaluation(dataset, selector_name, X, y,
+                                        classifier, selector, scorer, timeout,
+                                        "timeout", [1], [0], None, None)
+                evaluations = [evaluation] * folds
+                logging.warning("Timeout")
+                break
+            else:
+                evaluations.append(return_dict[0])
+
     except Exception as ex:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "error", [1], [0],
-                                None, None)
+                                selector, scorer, timeout, "error", [1],
+                                [0], None, None)
         evaluations = [evaluation] * folds
         logging.warning("Exception: %s" % ex)
-    except:
-        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "timeout", [1], [0],
-                                None, None)
-        evaluations = [evaluation] * folds
-        logging.warning("%s probably interrupted after timeout %d seconds" %
-                        (selector_name, timeout))
 
     for evaluation in evaluations:
         evaluation.write_to_csv(results_file)
@@ -230,7 +242,7 @@ def _step_num_from_results(dataset, classifier, selector, results_file, fold):
     return len(grid_scores)
 
 def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
-                train, test, write_selected, fold, results_file):
+                train, test, write_selected, fold, results_file, return_dict):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
 
@@ -266,9 +278,10 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
         grid_scores = clf.steps[1][1].grid_scores_
         selected_features = clf.steps[1][1].support_
 
-    return Evaluation(dataset, selector_name, X, y, classifier, selector,
-                      scorer, training_time, selected_feature_num, y_true,
-                      y_pred, grid_scores, selected_features, write_selected)
+    return_dict[0] = \
+        Evaluation(dataset, selector_name, X, y, classifier, selector,
+                   scorer, training_time, selected_feature_num, y_true, y_pred,
+                   grid_scores, selected_features, write_selected)
 
 
 def g_mean(y_true, y_pred, labels=None, correction=0.001):
