@@ -52,7 +52,7 @@ if __name__ == '__main__':
         for scorer in scorers:
             for classifier in classifiers:
                 evaluate(filename, "All", None, classifiers[classifier],
-                         scorers[scorer], X, y, SEED, timeout=4*60*60,
+                         scorers[scorer], X, y, SEED, timeout=None,
                          results_file="CaseStudy.csv")
 
                 # Subsecting and Fibonacci RFE
@@ -61,7 +61,7 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=4*60*60,
+                             SEED, timeout=None,
                              results_file="CaseStudy.csv", write_selected=True)
 
                 # Standard RFE equivalents
@@ -70,5 +70,5 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, rfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=4*60*60,
+                             SEED, timeout=None,
                              results_file="CaseStudy.csv", write_selected=True)
