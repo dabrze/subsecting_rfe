@@ -36,11 +36,11 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=100),
-    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1,
-                                              solver='sag', max_iter=100),
-    "GBM": LGBMClassifier(random_state=SEED, n_jobs=-1, verbose=-1,
-                          n_estimators=30)
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+                                            n_jobs=-1, random_state=SEED),
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1),
+    "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1)
 }
 
 if __name__ == '__main__':

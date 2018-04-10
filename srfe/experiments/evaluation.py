@@ -5,9 +5,7 @@
 import os
 import csv
 import ast
-import multiprocessing
 import time
-import math
 import logging
 import warnings
 
@@ -182,72 +180,15 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, timeout=1*60*60, n_jobs=-1,
+             seed, folds=10, n_jobs=-1, timeout=1*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
-
-    if classifier.__repr__().startswith("LGBM"):
-        evaluations = _evaluate_loop(dataset, selector_name, selector,
-                                     classifier, scorer, X, y, seed, folds,
-                                     timeout, results_file, write_selected)
-    else:
-        evaluations = _evaluate_parallel(dataset, selector_name, selector,
-                                         classifier, scorer, X, y, seed, folds,
-                                         timeout, n_jobs, results_file,
-                                         write_selected)
-
-    for evaluation in evaluations:
-        evaluation.write_to_csv(results_file)
-
-
-def _evaluate_loop(dataset, selector_name, selector, classifier, scorer, X, y,
-                   seed, folds=10, timeout=1*60*60,
-                   results_file="ExperimentResults.csv", write_selected=False):
-    cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
-    evaluations = []
-
-    try:
-        for fold, (train, test) in enumerate(cv.split(X, y)):
-            manager = multiprocessing.Manager()
-            return_dict = manager.dict()
-            p = multiprocessing.Process(target=_single_fit,
-                                        args=(dataset, selector_name, selector,
-                                              classifier, scorer, X, y, train,
-                                              test, write_selected, fold,
-                                              results_file, return_dict))
-            p.start()
-            p.join(timeout=timeout)
-            if p.is_alive():
-                p.terminate()
-                p.join()
-                evaluation = Evaluation(dataset, selector_name, X, y,
-                                        classifier, selector, scorer, timeout,
-                                        "timeout", [1], [0], None, None)
-                evaluations = [evaluation] * folds
-                logging.warning("Timeout")
-                break
-            else:
-                evaluations.append(return_dict[0])
-
-    except Exception as ex:
-        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "error: " + str(ex),
-                                [1], [0], None, None)
-        evaluations = [evaluation] * folds
-        logging.warning("Exception: %s" % ex)
-
-    return evaluations
-
-def _evaluate_parallel(dataset, selector_name, selector, classifier, scorer,
-                       X, y, seed, folds=10, timeout=1*60*60, n_jobs=-1,
-                       results_file="ExperimentResults.csv",
-                       write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
 
     try:
         evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
             delayed(_single_fit)(dataset, selector_name, selector, classifier,
                                  scorer, X, y, train, test, write_selected,
-                                 fold, results_file, None)
+                                 fold, results_file)
             for fold, (train, test) in enumerate(cv.split(X, y)))
     except Exception as ex:
         evaluation = Evaluation(dataset, selector_name, X, y, classifier,
@@ -263,7 +204,8 @@ def _evaluate_parallel(dataset, selector_name, selector, classifier, scorer,
         logging.warning("%s probably interrupted after timeout %d seconds" %
                         (selector_name, timeout))
 
-    return evaluations
+    for evaluation in evaluations:
+        evaluation.write_to_csv(results_file)
 
 
 def _step_num_from_results(dataset, classifier, selector, results_file, fold):
@@ -287,7 +229,7 @@ def _step_num_from_results(dataset, classifier, selector, results_file, fold):
     return len(grid_scores)
 
 def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
-                train, test, write_selected, fold, results_file, return_dict):
+                train, test, write_selected, fold, results_file):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
 
@@ -323,14 +265,9 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
         grid_scores = clf.steps[1][1].grid_scores_
         selected_features = clf.steps[1][1].support_
 
-    result = \
-        Evaluation(dataset, selector_name, X, y, classifier, selector,
-                   scorer, training_time, selected_feature_num, y_true, y_pred,
-                   grid_scores, selected_features, write_selected)
-    if return_dict is not None:
-        return_dict[0] = result
-
-    return result
+    return Evaluation(dataset, selector_name, X, y, classifier, selector,
+                      scorer, training_time, selected_feature_num, y_true,
+                      y_pred, grid_scores, selected_features, write_selected)
 
 
 def g_mean(y_true, y_pred, labels=None, correction=0.001):
