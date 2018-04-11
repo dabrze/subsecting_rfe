@@ -6,12 +6,12 @@ import os
 import glob
 import scipy.io
 import logging
-from lightgbm import LGBMClassifier
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S')
 
 from sklearn.feature_selection import RFECV
+from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
