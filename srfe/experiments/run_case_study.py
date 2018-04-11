@@ -3,7 +3,7 @@
 # License: MIT
 
 import os
-from lightgbm import LGBMClassifier
+from sklearn.svm import SVC
 import pandas as pd
 import logging
 logging.basicConfig(level=logging.DEBUG,
