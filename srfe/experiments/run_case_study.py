@@ -37,7 +37,7 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    "GBM": LGBMClassifier(seed=SEED, n_jobs=-1, verbose=-1, n_estimators=30)
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000)
 }
 
 if __name__ == '__main__':

@@ -1,0 +1,179 @@
+---
+title: "Fibonacci and k-Subsecting Recursive Feature Elimination: Supplement"
+output: 
+  html_notebook: 
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(knitr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(ggthemes)
+library(PMCMR)
+library(scmamp)
+
+knitr::opts_chunk$set(dpi=96, results = "asis")
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark=",")
+})
+SAVE_EPS = F
+```
+
+```{r functions}
+prettyTable <- function(table_df, round_columns=numeric(), round_digits=3, make_plot=T) {
+    DT::datatable(table_df, style="bootstrap", filter = "top", rownames = FALSE, extensions = "Buttons",
+                  options = list(dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>%
+    formatRound(round_columns, round_digits)
+}
+
+reportFriedman <- function(df, classifier, metric, metric_function, metric_direction=1, make_plot = T){
+    averages = data.frame(df) %>%
+        select(-c(Attributes, Number.of.classes, Min.class.examples, Max.class.examples)) %>%
+        group_by(Dataset, Classifier, Feature.selector) %>%
+        summarise_all(metric_function, na.rm=T) %>%
+        data.frame() %>%
+        filter(Feature.selector != 'All', Classifier == classifier) %>%
+        select_("Dataset", "Feature.selector", metric) %>%
+        spread("Feature.selector", metric) %>%
+        select(-Dataset) %>%
+        select(`FRFE`, `RFE-log`, `3-SRFE`, `RFE-log-3`, `5-SRFE`, `RFE-log-5`, `10-SRFE`, `RFE-log-10`) %>%
+        data.matrix()
+    
+    if (metric_direction == 1) {
+      averages_r = -averages
+      averages_t = averages
+    } else {
+      averages_r = averages
+      averages_t = -averages
+    }
+    ranks <- t(apply(averages_r, 1, rank))
+    ranks <- ranks[,order(colMeans(ranks, na.rm=TRUE))]
+
+    cat("<hr><strong>Friedman rank sum test</strong><br />")
+    testResult <- capture.output(print(friedman.test(averages_t)))
+    cat(testResult[5])
+    cat("\r\n")
+    print(kable(t(colMeans(ranks, na.rm=TRUE)), digits = 2))
+    cat("\r\n")
+    
+    if (make_plot){
+        plotCD(results.matrix = averages_t, alpha = 0.05)
+    }
+    
+    cat("<hr>")
+}
+
+facetBoxPlot <- function(plotDf, metric){
+    g = ggplot(plotDf, aes_string(x = "as.factor(Alpha)", y = metric)) + labs(x = "Alpha") + geom_boxplot(fill="#CC6677") + 
+        facet_grid(~Algorithm) + theme_bw()
+    ggplotly(g)
+}
+
+datasetFacetBoxPlot <- function(plotDf, metric){
+    g = ggplot(plotDf, aes_string(x = "Dataset", y = metric)) + geom_boxplot(fill="#CC6677") + facet_grid(.~Algorithm) + theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplotly(g)
+}
+
+calculateRankDataset <- function(df, betaFunc = betaMetric, friedmanMetric = "BetaMetric", sampleNum = 10, func="max"){
+    rankDataframe <- data.frame(Beta=numeric(), Algorithm=character(), Rank=numeric())
+    
+    for(i in 1:sampleNum){
+        friedmanDf <- df
+        beta = (i-1)/(sampleNum-1)
+        
+        friedmanDf$BetaMetric <- mapply(betaFunc, friedmanDf$AMI, friedmanDf$G.mean, MoreArgs = list(beta = beta))
+        
+        averages = friedmanDf %>% group_by(Dataset, Algorithm) %>%
+            summarize_(Metric = paste0(func, "(",friedmanMetric,")")) %>%
+            data.frame() %>% 
+            select(Dataset, Algorithm, Metric) %>%
+            spread(Algorithm, Metric) %>%
+            select(-Dataset) %>%
+            data.matrix()
+    
+        ranks <- t(apply(-averages, 1, rank))
+        rankMeans <- colMeans(ranks, na.rm=TRUE)
+        rankDataframeRow <- data.frame(Beta=rep(beta, times=length(rankMeans)),
+                                    Algorithm=names(rankMeans),
+                                    Rank=rankMeans)
+        
+        rankDataframe <- rbind(rankDataframe, rankDataframeRow, make.row.names = F)
+    }
+    
+    rankDataframe
+}
+```
+
+
+# Results summary
+
+## Raw results
+
+```{r raw summary}
+df <- read.csv("Benchmarks.csv", na.strings = c("?", "", "-")) %>%
+    mutate(Dataset = as.character(Dataset), Classifier = as.character(Classifier), Selected.num = as.character(Selected.num)) %>%
+    select(-c(Start.date, Selector.params, Scorer, Grid.scores, Selected.features))
+
+
+df$Dataset <- substr(df$Dataset, 1, nchar(df$Dataset)-4)
+df$Dataset <- as.factor(df$Dataset)
+
+df$Classifier[startsWith(df$Classifier, "SVC")] <- "SVM"
+df$Classifier[startsWith(df$Classifier, "Random")] <- "RF"
+df$Classifier[startsWith(df$Classifier, "Logistic")] <- "LR"
+df$Classifier[startsWith(df$Classifier, "LGBM")] <- "GBM"
+df$Classifier <- as.factor(df$Classifier)
+
+df$Selected.num[df$Selected.num == "error"] <- NA
+df$Selected.num <- as.numeric(df$Selected.num)
+
+prettyTable(df, c(9, 11:15))
+```
+
+## Datasets
+
+```{r dataset summary}
+datasets_df <- df %>%
+  select(Dataset, Examples, Attributes, Number.of.classes, Min.class.examples, Max.class.examples) %>%
+  distinct()
+  
+prettyTable(datasets_df)
+```
+
+## Mean cross-validation scores
+
+```{r cv summary, warning=F}
+cv_df <- df %>%
+  select(-c(Attributes, Number.of.classes, Min.class.examples, Max.class.examples)) %>%
+  group_by(Dataset, Classifier, Feature.selector) %>%
+  summarise_all(mean, na_rm=T)
+  
+
+prettyTable(cv_df, c(5, 8:12))
+```
+
+# Comparisons and statistical tests
+
+```{r, results="asis"}
+classifiers <- as.character(unique(cv_df$Classifier))
+metrics <- c("Selected.num", "Selected.num", "Accuracy", "Kappa", "Macro.recall", "G.mean", "Processing.time")
+metric_functions <- c(mean, sd, mean, mean, mean, mean, mean)
+mertric_headers <-c("Number of selected features", "Standard deviation of number of selected features", "Accuracy", "Kappa", "Macro recall", "G-mean", "Processing time")
+metric_direction <- c(-1, -1, 1, 1, 1, 1, -1)
+
+for (i in seq_along(metrics)){
+  cat(paste0("## ", mertric_headers[i],"\r\n\r\n"))
+  for (classifier in classifiers){
+    cat(paste0("### ", classifier,"\r\n\r\n"))
+    reportFriedman(df, classifier, metrics[i], metric_functions[i], metric_direction[i])
+  }
+}
+
+```
