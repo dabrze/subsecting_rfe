@@ -65,8 +65,28 @@ reportFriedman <- function(df, classifier, metric, metric_function, metric_direc
     print(kable(mean_ranks, digits = 2))
     cat("\r\n")
     
+    w_df <- data.frame(Subsecting = c("FRFE", "3-SRFE", "5-SRFE", "10-SRFE"),
+                       Standard = c("RFE-log", "RFE-log-3", "RFE-log-5", "RFE-log-10"), 
+                       p.value = c(-1, -1,-1, -1)) %>%
+      mutate(Hypothesis = paste0(Subsecting, " vs ", Standard))
+    cat("<hr><strong>Wilcoxon signed rank test</strong><br />")
+    for (r in 1:nrow(w_df)){
+      wTest <- wilcox.test(averages_t[,as.character(w_df[r, "Subsecting"])],
+                           averages_t[,as.character(w_df[r, "Standard"])],
+                           paired=TRUE, alternative = "g")
+      w_df[r, "p.value"] <- wTest$p.value
+    }
+    print(kable(w_df %>% select(Hypothesis, p.value), digits = 3))
+    cat("\r\n")
+    
+    
+    
     if (make_plot){
-        print(plotCD(results.matrix = averages_t, alpha = 0.05))
+        setEPS()
+        par(mar=c(0,0,0,0))
+        postscript(paste0("images/", metric, "_", classifier, "_",  "Friedman.eps"), width = 7, height = 3.4)
+        plotCD(results.matrix = averages_t, alpha = 0.05, cex = 1.1)
+        dev.off()
     }
 
     cat("<hr>")
@@ -178,10 +198,10 @@ df_grid$Type <- as.factor(df_grid$Type)
 cbPalette <- c("#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#1f78b4", "#33a02c", "#e31a1c", "#ff7f00")
 
 for (dataset in unique(df_grid$Dataset)){
-  plot_df <- df_grid %>% filter(Dataset == dataset)
+  plot_df <- df_grid %>% filter(Dataset == dataset, Fold == 0)
   p <- ggplot(plot_df, aes(Feature.num, Accuracy, color=Feature.selector)) + geom_point(alpha=0.6) + facet_grid(Classifier~Type) + theme_bw() + scale_color_manual(values=cbPalette, name="Selector") + xlab("Number of features")
-  ggsave(paste0(dataset, ".svg"), plot = p, dpi = 300, width=8, height=4, units = "in")
-  ggsave(paste0(dataset, ".png"), plot = p, dpi = 300, width=8, height=4, units = "in")
+  ggsave(paste0("images/", dataset, ".svg"), plot = p, dpi = 300, width=8, height=4, units = "in")
+  ggsave(paste0("images/", dataset, ".png"), plot = p, dpi = 300, width=8, height=4, units = "in")
   print(p + ggtitle(dataset))
 }
 ```
