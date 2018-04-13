@@ -57,57 +57,21 @@ reportFriedman <- function(df, classifier, metric, metric_function, metric_direc
     ranks <- ranks[,order(colMeans(ranks, na.rm=TRUE))]
 
     cat("<hr><strong>Friedman rank sum test</strong><br />")
-    testResult <- capture.output(print(friedman.test(averages_t)))
+    fTest <- friedman.test(averages_t)
+    testResult <- capture.output(print(fTest))
     cat(testResult[5])
     cat("\r\n")
-    print(kable(t(colMeans(ranks, na.rm=TRUE)), digits = 2))
+    mean_ranks <- t(colMeans(ranks, na.rm=TRUE))
+    print(kable(mean_ranks, digits = 2))
     cat("\r\n")
     
     if (make_plot){
-        plotCD(results.matrix = averages_t, alpha = 0.05)
+        print(plotCD(results.matrix = averages_t, alpha = 0.05))
     }
-    
+
     cat("<hr>")
-}
-
-facetBoxPlot <- function(plotDf, metric){
-    g = ggplot(plotDf, aes_string(x = "as.factor(Alpha)", y = metric)) + labs(x = "Alpha") + geom_boxplot(fill="#CC6677") + 
-        facet_grid(~Algorithm) + theme_bw()
-    ggplotly(g)
-}
-
-datasetFacetBoxPlot <- function(plotDf, metric){
-    g = ggplot(plotDf, aes_string(x = "Dataset", y = metric)) + geom_boxplot(fill="#CC6677") + facet_grid(.~Algorithm) + theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-ggplotly(g)
-}
-
-calculateRankDataset <- function(df, betaFunc = betaMetric, friedmanMetric = "BetaMetric", sampleNum = 10, func="max"){
-    rankDataframe <- data.frame(Beta=numeric(), Algorithm=character(), Rank=numeric())
-    
-    for(i in 1:sampleNum){
-        friedmanDf <- df
-        beta = (i-1)/(sampleNum-1)
-        
-        friedmanDf$BetaMetric <- mapply(betaFunc, friedmanDf$AMI, friedmanDf$G.mean, MoreArgs = list(beta = beta))
-        
-        averages = friedmanDf %>% group_by(Dataset, Algorithm) %>%
-            summarize_(Metric = paste0(func, "(",friedmanMetric,")")) %>%
-            data.frame() %>% 
-            select(Dataset, Algorithm, Metric) %>%
-            spread(Algorithm, Metric) %>%
-            select(-Dataset) %>%
-            data.matrix()
-    
-        ranks <- t(apply(-averages, 1, rank))
-        rankMeans <- colMeans(ranks, na.rm=TRUE)
-        rankDataframeRow <- data.frame(Beta=rep(beta, times=length(rankMeans)),
-                                    Algorithm=names(rankMeans),
-                                    Rank=rankMeans)
-        
-        rankDataframe <- rbind(rankDataframe, rankDataframeRow, make.row.names = F)
-    }
-    
-    rankDataframe
+    mean_ranks_df <- data.frame(`FRFE` = mean_ranks[1, "FRFE"], `RFE-log` = mean_ranks[1, "RFE-log"], `3-SRFE` = mean_ranks[1, "3-SRFE"], `RFE-log-3` = mean_ranks[1, "RFE-log-3"], `5-SRFE` = mean_ranks[1, "5-SRFE"], `RFE-log-5` = mean_ranks[1, "RFE-log-5"], `10-SRFE` = mean_ranks[1, "10-SRFE"], `RFE-log-10` = mean_ranks[1, "RFE-log-10"], `p-value` = fTest$p.value)
+    mean_ranks_df
 }
 ```
 
@@ -159,7 +123,7 @@ cv_df <- df %>%
 prettyTable(cv_df, c(5, 8:12))
 ```
 
-# Comparisons and statistical tests
+# Comparisons and statistical tests {.tabset}
 
 ```{r, results="asis"}
 classifiers <- as.character(unique(cv_df$Classifier))
@@ -168,12 +132,61 @@ metric_functions <- c(mean, sd, mean, mean, mean, mean, mean)
 mertric_headers <-c("Number of selected features", "Standard deviation of number of selected features", "Accuracy", "Kappa", "Macro recall", "G-mean", "Processing time")
 metric_direction <- c(-1, -1, 1, 1, 1, 1, -1)
 
+friedman_df <- data.frame(Metric = character(), Classifier = character(), `FRFE` = numeric(), `RFE-log` = numeric(), `3-SRFE` = numeric(), `RFE-log-3` = numeric(), `5-SRFE` = numeric(), `RFE-log-5` = numeric(), `10-SRFE` = numeric(), `RFE-log-10` = numeric(), `p-value` = numeric())
+
 for (i in seq_along(metrics)){
   cat(paste0("## ", mertric_headers[i],"\r\n\r\n"))
   for (classifier in classifiers){
     cat(paste0("### ", classifier,"\r\n\r\n"))
-    reportFriedman(df, classifier, metrics[i], metric_functions[i], metric_direction[i])
+    mean_ranks <- reportFriedman(df, classifier, metrics[i], metric_functions[i], metric_direction[i], make_plot = F)
+    mean_df <- data.frame(Metric = mertric_headers[i], Classifier = classifier, `FRFE` = mean_ranks$FRFE, `RFE-log` = mean_ranks$RFE.log, `3-SRFE` = mean_ranks$X3.SRFE, `RFE-log-3` = mean_ranks$RFE.log.3, `5-SRFE` = mean_ranks$X5.SRFE, `RFE-log-5` = mean_ranks$RFE.log.5, `10-SRFE` = mean_ranks$X10.SRFE, `RFE-log-10` = mean_ranks$RFE.log.10, `p-value` = mean_ranks$p.value)
+    friedman_df <- rbind(friedman_df, mean_df)
   }
 }
 
 ```
+
+## Friedman tests summary
+
+```{r freidmanSummary}
+prettyTable(friedman_df, 3:ncol(friedman_df), 3)
+```
+
+
+# Feature selection plots
+
+```{r feature plots}
+df_grid <- read.csv("GridScores.csv", na.strings = c("?", "", "-")) %>% 
+  mutate(Dataset = as.character(Dataset), Classifier = as.character(Classifier))
+df_grid$Dataset <- substr(df_grid$Dataset, 1, nchar(df_grid$Dataset)-4)
+df_grid$Dataset <- as.factor(df_grid$Dataset)
+
+df_grid$Classifier[startsWith(df_grid$Classifier, "SVC")] <- "SVM"
+df_grid$Classifier[startsWith(df_grid$Classifier, "Random")] <- "RF"
+df_grid$Classifier[startsWith(df_grid$Classifier, "Logistic")] <- "LR"
+df_grid$Classifier[startsWith(df_grid$Classifier, "LGBM")] <- "GBM"
+df_grid$Classifier <- as.factor(df_grid$Classifier)
+
+df_grid$Feature.selector = factor(df_grid$Feature.selector,levels(df_grid$Feature.selector)[c(4,2,3,1,5,7,8,6)])
+
+df_grid$Type <- as.character(df_grid$Feature.selector)
+df_grid$Type[df_grid$Type == "FRFE" | df_grid$Type == "3-SRFE" | df_grid$Type == "5-SRFE" | df_grid$Type == "10-SRFE"] <- "FRFE/k-SRFE"
+df_grid$Type[df_grid$Type != "FRFE/k-SRFE"] <- "RFE"
+df_grid$Type <- as.factor(df_grid$Type)
+
+
+cbPalette <- c("#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#1f78b4", "#33a02c", "#e31a1c", "#ff7f00")
+
+for (dataset in unique(df_grid$Dataset)){
+  plot_df <- df_grid %>% filter(Dataset == dataset)
+  p <- ggplot(plot_df, aes(Feature.num, Accuracy, color=Feature.selector)) + geom_point(alpha=0.6) + facet_grid(Classifier~Type) + theme_bw() + scale_color_manual(values=cbPalette, name="Selector") + xlab("Number of features")
+  ggsave(paste0(dataset, ".svg"), plot = p, dpi = 300, width=8, height=4, units = "in")
+  ggsave(paste0(dataset, ".png"), plot = p, dpi = 300, width=8, height=4, units = "in")
+  print(p + ggtitle(dataset))
+}
+```
+
+
+
+
+
