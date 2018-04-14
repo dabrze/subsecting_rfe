@@ -104,3 +104,8 @@ ENV/
 .Rproj.user
 /.idea/codeStyles/codeStyleConfig.xml
 /.idea/other.xml
+/results/.RData
+/results/.Rhistory
+/results/GridScores.csv
+/srfe/data/pdb_blobs_X.csv.gz
+/srfe/data/pdb_blobs_y.csv.gz

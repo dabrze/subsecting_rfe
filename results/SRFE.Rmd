@@ -26,7 +26,7 @@ knitr::knit_hooks$set(inline = function(x) {
 SAVE_EPS = F
 ```
 
-```{r functions}
+```{r functions, warning=F, message=F}
 prettyTable <- function(table_df, round_columns=numeric(), round_digits=3, make_plot=T) {
     DT::datatable(table_df, style="bootstrap", filter = "top", rownames = FALSE, extensions = "Buttons",
                   options = list(dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>%
@@ -96,7 +96,7 @@ reportFriedman <- function(df, classifier, metric, metric_function, metric_direc
 ```
 
 
-# Results summary
+# Benchmark results
 
 ## Raw results
 
@@ -145,7 +145,7 @@ prettyTable(cv_df, c(5, 8:12))
 
 # Comparisons and statistical tests {.tabset}
 
-```{r, results="asis"}
+```{r, results="asis", warning=F, message=F, error=F}
 classifiers <- as.character(unique(cv_df$Classifier))
 metrics <- c("Selected.num", "Selected.num", "Accuracy", "Kappa", "Macro.recall", "G.mean", "Processing.time")
 metric_functions <- c(mean, sd, mean, mean, mean, mean, mean)
@@ -176,7 +176,7 @@ prettyTable(friedman_df, 3:ncol(friedman_df), 3)
 # Feature selection plots
 
 ```{r feature plots}
-df_grid <- read.csv("GridScores.csv", na.strings = c("?", "", "-")) %>% 
+df_grid <- read.csv(gzfile("GridScores.csv.gz", "GridScores.csv"), na.strings = c("?", "", "-")) %>% 
   mutate(Dataset = as.character(Dataset), Classifier = as.character(Classifier))
 df_grid$Dataset <- substr(df_grid$Dataset, 1, nchar(df_grid$Dataset)-4)
 df_grid$Dataset <- as.factor(df_grid$Dataset)
@@ -206,7 +206,58 @@ for (dataset in unique(df_grid$Dataset)){
 }
 ```
 
+# Case study
+
+## Raw results
+
+```{r case_study}
+case_df <- read.csv("CaseStudy.csv", na.strings = c("?", "", "-")) %>%
+    mutate(Dataset = as.character(Dataset), Classifier = as.character(Classifier), Selected.num = as.character(Selected.num)) %>%
+    select(-c(Start.date, Selector.params, Scorer, Grid.scores, Selected.features))
 
 
+case_df$Dataset <- substr(case_df$Dataset, 1, nchar(case_df$Dataset)-9)
+case_df$Dataset <- as.factor(case_df$Dataset)
+
+case_df$Classifier[startsWith(case_df$Classifier, "SVC")] <- "SVM"
+case_df$Classifier[startsWith(case_df$Classifier, "Random")] <- "RF"
+case_df$Classifier[startsWith(case_df$Classifier, "Logistic")] <- "LR"
+case_df$Classifier[startsWith(case_df$Classifier, "LGBM")] <- "GBM"
+case_df$Classifier <- as.factor(case_df$Classifier)
+
+case_df$Selected.num[case_df$Selected.num == "error"] <- NA
+case_df$Selected.num <- as.numeric(case_df$Selected.num)
+
+prettyTable(case_df, c(9, 11:15))
+```
+## Mean cross-validation scores
+
+```{r case cv summary, warning=F}
+case_cv_df <- case_df %>%
+  select(-c(Attributes, Number.of.classes, Min.class.examples, Max.class.examples)) %>%
+  group_by(Dataset, Classifier, Feature.selector) %>%
+  summarise_all(mean, na_rm=T)
+  
+
+prettyTable(case_cv_df, c(5, 8:12))
+```
+
+## Common features
+
+```{r case common features, warning=F}
+scores_df <- read.csv("KappaScores.csv", na.strings = c("?", "", "-")) %>%
+    mutate(Dataset = as.character(Dataset), Classifier = as.character(Classifier))
 
 
+scores_df$Dataset <- substr(scores_df$Dataset, 1, nchar(scores_df$Dataset)-9)
+scores_df$Dataset <- as.factor(scores_df$Dataset)
+
+scores_df$Classifier[startsWith(scores_df$Classifier, "SVC")] <- "SVM"
+scores_df$Classifier[startsWith(scores_df$Classifier, "Random")] <- "RF"
+scores_df$Classifier[startsWith(scores_df$Classifier, "Logistic")] <- "LR"
+scores_df$Classifier[startsWith(scores_df$Classifier, "LGBM")] <- "GBM"
+scores_df$Classifier <- as.factor(scores_df$Classifier)
+  
+
+prettyTable(scores_df, 5)
+```

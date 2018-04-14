@@ -81,7 +81,12 @@ def checkEachLineCount(mat):
         sum(line) == n for line in mat[1:]), "Line count != %d (n value)." % n
     return n
 
+
 if __name__ == '__main__':
+    np.set_printoptions(threshold=1000000)
+    pdb = pd.read_csv(os.path.join(os.path.dirname(__file__),
+                                   "../data/pdb_blobs_X.csv.gz"),
+                      index_col=0, header=0, compression='gzip')
     df = pd.read_csv(os.path.join(DATA_PATH, DATA_FILE))
 
     datasets = df.loc[:, "Dataset"].unique()
@@ -112,10 +117,12 @@ if __name__ == '__main__':
                 selected = np.sum(fold_features, axis=0)
                 non_selected = -selected + folds_num
                 mat = np.vstack((non_selected, selected)).T
-
+                f_nums= np.where(np.all(fold_features, axis=0))
+                common_features = np.array(pdb.columns.values)[f_nums]
                 melted = pd.DataFrame({"Dataset": [dataset],
                                        "Classifier": [classifier],
                                        "Feature selector": [selector],
+                                       "Common Features": [np.array2string(common_features, max_line_width=1000000)],
                                        "Fleiss Kappa": [computeKappa(mat)]})
 
                 if melted is not None:
