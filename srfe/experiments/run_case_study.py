@@ -10,8 +10,7 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m/%d/%Y %H:%M:%S')
 
 from sklearn.feature_selection import RFECV
-from lightgbm import LGBMClassifier
-
+from sklearn.ensemble import RandomForestClassifier
 from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
@@ -28,14 +27,12 @@ srfe_selectors = {
     "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
 }
 rfe_selectors = {
-    "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
-    "RFE-log": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-1": RFECV(None, step=1, cv=5, n_jobs=1)
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    "GBM": LGBMClassifier(random_state=SEED, n_jobs=-1, verbose=-1)
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+                                            n_jobs=-1, random_state=SEED)
 }
 
 if __name__ == '__main__':
@@ -53,7 +50,7 @@ if __name__ == '__main__':
                 logging.info("Evaluating all features using %s scored with %s",
                              classifier, scorer)
                 evaluate(filename, "All", None, classifiers[classifier],
-                         scorers[scorer], X, y, SEED, timeout=None, n_jobs=1,
+                         scorers[scorer], X, y, SEED, timeout=None, n_jobs=-1,
                          results_file="CaseStudy.csv")
 
                 # Subsecting and Fibonacci RFE
@@ -62,7 +59,7 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=None, n_jobs=1,
+                             SEED, timeout=None, n_jobs=-1,
                              results_file="CaseStudy.csv", write_selected=True)
 
                 # Standard RFE equivalents
@@ -71,5 +68,5 @@ if __name__ == '__main__':
                                  selector, classifier, scorer)
                     evaluate(filename, selector, rfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
-                             SEED, timeout=None, n_jobs=1,
+                             SEED, timeout=None, n_jobs=-1,
                              results_file="CaseStudy.csv", write_selected=True)
