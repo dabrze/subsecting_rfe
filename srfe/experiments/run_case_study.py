@@ -27,12 +27,15 @@ srfe_selectors = {
     "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
 }
 rfe_selectors = {
-    "RFE-1": RFECV(None, step=1, cv=5, n_jobs=1)
+    "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log": RFECV(None, step="custom", cv=5, n_jobs=1),
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
     "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
-                                            n_jobs=-1, random_state=SEED)
+                                        n_jobs=-1, random_state=SEED)
 }
 
 if __name__ == '__main__':
