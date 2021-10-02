@@ -5,7 +5,7 @@ Recursive Elimination feature selection methods. Benchmark data sets taken from
 the scikit-feature selection repository (http://featureselection.asu.edu/).
 
 Algorithms described in "Fibonacci and k-Subsecting Recursive Feature 
-Elimination" by Dariusz Brzezinski and Marcin Kowiel. Detailed experimental 
+Elimination". Detailed experimental 
 results available at:
 http://www.cs.put.poznan.pl/dbrzezinski/software/SRFE.html
 
