@@ -13,11 +13,11 @@ from sklearn.base import BaseEstimator
 from sklearn.base import MetaEstimatorMixin
 from sklearn.base import clone
 from sklearn.base import is_classifier
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 from sklearn.model_selection import check_cv
 from sklearn.model_selection._validation import _safe_split, _score
-from sklearn.metrics.scorer import check_scoring
-from sklearn.feature_selection.base import SelectorMixin
+from sklearn.metrics import check_scoring
+from sklearn.feature_selection import SelectorMixin
 
 
 def _single_fit(rfe, features, X, y, train, test, scorer, fold):
@@ -124,7 +124,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         """
         X, y = check_X_y(X, y, "csr")
 
-        cv = check_cv(self.cv, y, is_classifier(self.estimator))
+        cv = check_cv(self.cv, y, classifier=is_classifier(self.estimator))
         scorer = check_scoring(self.estimator, scoring=self.scoring)
         n_features = int(X.shape[1])
 

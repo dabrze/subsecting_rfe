@@ -15,10 +15,10 @@ import scipy as sp
 
 from sklearn import metrics
 from sklearn.base import clone
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 from sklearn.utils.multiclass import unique_labels
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
-from sklearn.metrics.classification import _prf_divide
+from sklearn.metrics._classification import _prf_divide
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import StratifiedKFold
 
@@ -180,9 +180,9 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=1*60*60,
+             seed, folds=10, n_jobs=1, timeout=1*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
-    cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=False)
+    cv = StratifiedKFold(n_splits=folds, shuffle=False)
 
     try:
         evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
