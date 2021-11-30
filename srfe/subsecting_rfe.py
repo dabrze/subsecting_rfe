@@ -18,6 +18,7 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection._validation import _safe_split, _score
 from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
+import shap
 
 
 def _single_fit(rfe, features, X, y, train, test, scorer, fold):
@@ -320,31 +321,42 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             print("Fitting estimator with %d features." % len(features))
 
         estimator.fit(X_train[:, features], y_train)
-
-        # Get coefs
-        if hasattr(estimator, 'coef_'):
-            coefs = estimator.coef_
-        else:
-            coefs = getattr(estimator, 'feature_importances_', None)
-        if coefs is None:
-            raise RuntimeError('The classifier does not expose '
-                               '"coef_" or "feature_importances_" '
-                               'attributes')
-
-        # Get ranks
-        if coefs.ndim > 1:
-            ranks = np.argsort(safe_sqr(coefs).sum(axis=0))
-        else:
-            ranks = np.argsort(safe_sqr(coefs))
-
-        # for sparse case ranks is matrix
-        ranks = np.ravel(ranks)
-        ranks = features[ranks]
-
         if scorer is not None:
             score = _score(estimator, X_test[:, features], y_test, scorer)
         else:
             score = None
+
+        explainer = shap.LinearExplainer(estimator, X_train[:, features]) # maby squares should be used instead?????? TODO
+        if X_test is None:
+            shap_values = explainer(X_train[:, features])
+        else:
+            shap_values = explainer(X_test[:, features])
+        shaprank= shap_values.values.sum(axis = 0)
+        if shaprank.ndim > 1:
+            shaprank = shaprank.sum(axis = 1)
+        shaprank = np.argsort(shaprank)
+        ranks = shaprank
+
+        # # below old implementation:
+        # # Get coefs
+        # if hasattr(estimator, 'coef_'):
+        #     coefs = estimator.coef_
+        # else:
+        #     coefs = getattr(estimator, 'feature_importances_', None)
+        # if coefs is None:
+        #     raise RuntimeError('The classifier does not expose '
+        #                        '"coef_" or "feature_importances_" '
+        #                        'attributes')
+
+        # # Get ranks
+        # if coefs.ndim > 1:
+        #     ranks = np.argsort(safe_sqr(coefs).sum(axis=0))
+        # else:
+        #     ranks = np.argsort(safe_sqr(coefs))
+
+        # for sparse case ranks is matrix
+        ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
+        ranks = features[ranks]
 
         return (score, ranks)
 

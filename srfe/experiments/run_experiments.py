@@ -38,11 +38,11 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    # "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+    # "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
     #                                         n_jobs=1, random_state=SEED),
-    # "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),
-    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1),
-    # "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1)
+    # "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),  # they suggested KernelExplainer
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer
+    # "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1) # shap.TreeExplainer
 }
 warnings.filterwarnings("ignore")
 if __name__ == '__main__':

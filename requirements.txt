@@ -11,3 +11,4 @@ scikit-learn==1.0.1
 scipy==1.7.1
 six==1.16.0
 subprocess32==3.5.4
+shap==0.39.0
