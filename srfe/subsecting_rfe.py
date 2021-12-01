@@ -337,23 +337,6 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         shaprank = np.argsort(shaprank)
         ranks = shaprank
 
-        # # below old implementation:
-        # # Get coefs
-        # if hasattr(estimator, 'coef_'):
-        #     coefs = estimator.coef_
-        # else:
-        #     coefs = getattr(estimator, 'feature_importances_', None)
-        # if coefs is None:
-        #     raise RuntimeError('The classifier does not expose '
-        #                        '"coef_" or "feature_importances_" '
-        #                        'attributes')
-
-        # # Get ranks
-        # if coefs.ndim > 1:
-        #     ranks = np.argsort(safe_sqr(coefs).sum(axis=0))
-        # else:
-        #     ranks = np.argsort(safe_sqr(coefs))
-
         # for sparse case ranks is matrix
         ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
         ranks = features[ranks]
