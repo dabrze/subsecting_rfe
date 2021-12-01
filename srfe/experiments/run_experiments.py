@@ -51,24 +51,10 @@ if __name__ == '__main__':
 
         for scorer in scorers:
             for classifier in classifiers:
-                # logging.info("Evaluating all features using %s scored with %s",
-                #              classifier, scorer)
-                # evaluate(filename, "All", None, classifiers[classifier],
-                #          scorers[scorer], X, y, SEED,
-                #          results_file="Benchmarks.csv")
-
-                # # Subsecting and Fibonacci RFE
+                # Subsecting and Fibonacci RFE
                 for selector in srfe_selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
                              SEED, results_file="Benchmarks.csv")
-
-                # Standard RFE equivalents
-                # for selector in rfe_selectors:
-                #     logging.info("Evaluating %s using %s scored with %s",
-                #                  selector, classifier, scorer)
-                #     evaluate(filename, selector, rfe_selectors[selector],
-                #              classifiers[classifier], scorers[scorer], X, y,
-                #              SEED, results_file="Benchmarks.csv")

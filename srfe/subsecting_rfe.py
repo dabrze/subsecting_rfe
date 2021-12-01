@@ -360,7 +360,6 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             shaprank = abs(shaprank).sum(axis = 1)
         shaprank = np.argsort(shaprank)
         ranks = shaprank
-        
 
         # for sparse case ranks is matrix
         ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
