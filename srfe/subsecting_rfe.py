@@ -6,6 +6,7 @@
 
 import numpy as np
 import math
+from numpy.lib.arraysetops import isin
 
 from sklearn.utils import check_X_y, safe_sqr
 from sklearn.utils.metaestimators import if_delegate_has_method
@@ -19,6 +20,10 @@ from sklearn.model_selection._validation import _safe_split, _score
 from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
 import shap
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from lightgbm import LGBMClassifier
 
 
 def _single_fit(rfe, features, X, y, train, test, scorer, fold):
@@ -326,33 +331,25 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         else:
             score = None
 
-        explainer = shap.LinearExplainer(estimator, X_train[:, features]) # maby squares should be used instead?????? TODO
+        if isinstance(estimator, RandomForestClassifier) or isinstance(estimator, LGBMClassifier):
+            Explainer = shap.TreeExplainer
+        if isinstance(estimator, SVC):
+            Explainer = shap.KernelExplainer
+        elif isinstance(estimator, LogisticRegression):
+            Explainer = shap.LinearExplainer
+        else:
+            raise ValueError("Estimator object \"{}\" not supported!!!".format(estimator.__class__.__name__))
+        explainer = Explainer(estimator, X_train[:, features]) 
         if X_test is None:
             shap_values = explainer(X_train[:, features])
         else:
             shap_values = explainer(X_test[:, features])
         shaprank= shap_values.values.sum(axis = 0)
         if shaprank.ndim > 1:
-            shaprank = shaprank.sum(axis = 1)
+            shaprank = abs(shaprank).sum(axis = 1)
         shaprank = np.argsort(shaprank)
         ranks = shaprank
-
-        # # below old implementation:
-        # # Get coefs
-        # if hasattr(estimator, 'coef_'):
-        #     coefs = estimator.coef_
-        # else:
-        #     coefs = getattr(estimator, 'feature_importances_', None)
-        # if coefs is None:
-        #     raise RuntimeError('The classifier does not expose '
-        #                        '"coef_" or "feature_importances_" '
-        #                        'attributes')
-
-        # # Get ranks
-        # if coefs.ndim > 1:
-        #     ranks = np.argsort(safe_sqr(coefs).sum(axis=0))
-        # else:
-        #     ranks = np.argsort(safe_sqr(coefs))
+        
 
         # for sparse case ranks is matrix
         ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
