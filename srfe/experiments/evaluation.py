@@ -182,7 +182,7 @@ class DatasetStatistics:
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
              seed, folds=10, n_jobs=1, timeout=1*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
-    cv = StratifiedKFold(n_splits=folds, shuffle=False)
+    cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=True)
 
     try:
         evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(

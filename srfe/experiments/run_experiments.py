@@ -17,10 +17,6 @@ from sklearn.linear_model import LogisticRegression
 from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s: %(message)s',
-                    datefmt='%m/%d/%Y %H:%M:%S')
-
 SEED = 23
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/lung_small.mat")
 
@@ -38,11 +34,11 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    # "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
-    #                                         n_jobs=1, random_state=SEED),
-    # "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000),  # they suggested KernelExplainer
-    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer
-    # "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1) # shap.TreeExplainer
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
+                                            n_jobs=1, random_state=SEED),#n_jobs=-1
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000, probability=True),  # they suggested KernelExplainer
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer, n_jobs = -1
+    # "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1) # shap.TreeExplainer NOT WORKING YET TODO https://github.com/slundberg/shap/issues/480
 }
 warnings.filterwarnings("ignore")
 if __name__ == '__main__':

@@ -231,6 +231,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 = self._get_cv_results(features, cv, X, y, scorer)
 
             while m_step > 0:
+                print(m_step, self.step)
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 if mids[-1] > lower:
                     mids.append(lower)
@@ -326,25 +327,35 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             print("Fitting estimator with %d features." % len(features))
 
         estimator.fit(X_train[:, features], y_train)
-        if scorer is not None:
-            score = _score(estimator, X_test[:, features], y_test, scorer)
-        else:
-            score = None
+
 
         if isinstance(estimator, RandomForestClassifier) or isinstance(estimator, LGBMClassifier):
             Explainer = shap.TreeExplainer
-        if isinstance(estimator, SVC):
-            Explainer = shap.KernelExplainer
+            explainer = Explainer(estimator, X_train[:, features])
+            if X_test is None:
+                shap_values = explainer(X_train[:, features])
+            else:
+                shap_values = explainer(X_test[:, features])
+            shap_values = shap_values.values
         elif isinstance(estimator, LogisticRegression):
             Explainer = shap.LinearExplainer
+            explainer = Explainer(estimator, X_train[:, features])
+            if X_test is None:
+                shap_values = explainer(X_train[:, features])
+            else:
+                shap_values = explainer(X_test[:, features])
+            shap_values = shap_values.values
+        elif isinstance(estimator, SVC):
+            Explainer = shap.KernelExplainer
+            explainer = Explainer(estimator.predict_proba, X_train[:, features], link="logit")
+            if X_test is None:
+                shap_values = explainer.shap_values(X_train[:, features], nsamples=100)
+            else:
+                shap_values = explainer.shap_values(X_test[:, features], nsamples=100)
+            shap_values = np.stack(shap_values, axis = 2)
         else:
-            raise ValueError("Estimator object \"{}\" not supported!!!".format(estimator.__class__.__name__))
-        explainer = Explainer(estimator, X_train[:, features]) 
-        if X_test is None:
-            shap_values = explainer(X_train[:, features])
-        else:
-            shap_values = explainer(X_test[:, features])
-        shaprank= shap_values.values.sum(axis = 0)
+            raise ValueError("Estimator object \"{}\" not supported!!!".format(estimator.__class__.__name__)) 
+        shaprank= shap_values.sum(axis = 0)
         if shaprank.ndim > 1:
             shaprank = abs(shaprank).sum(axis = 1)
         shaprank = np.argsort(shaprank)
@@ -354,6 +365,11 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         # for sparse case ranks is matrix
         ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
         ranks = features[ranks]
+
+        if scorer is not None:
+            score = _score(estimator, X_test[:, features], y_test, scorer)
+        else:
+            score = None
 
         return (score, ranks)
 
