@@ -19,7 +19,7 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection._validation import _safe_split, _score
 from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
-import shap
+from shap import Explainer, KernelExplainer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -328,30 +328,22 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
         estimator.fit(X_train[:, features], y_train)
 
+        if X_test is not None:
+            X = X_test[:, features]
+            y = y_test
+        else:
+            X = X_train[:, features]
+            y = y_train
+        
+        if not isinstance(estimator, SVC):
+            explainer = Explainer(estimator)
+            shap_values = explainer(X)
+            shap_values = shap_values.values
 
-        if isinstance(estimator, RandomForestClassifier) or isinstance(estimator, LGBMClassifier):
-            Explainer = shap.TreeExplainer
-            explainer = Explainer(estimator, X_train[:, features])
-            if X_test is None:
-                shap_values = explainer(X_train[:, features])
-            else:
-                shap_values = explainer(X_test[:, features])
-            shap_values = shap_values.values
-        elif isinstance(estimator, LogisticRegression):
-            Explainer = shap.LinearExplainer
-            explainer = Explainer(estimator, X_train[:, features])
-            if X_test is None:
-                shap_values = explainer(X_train[:, features])
-            else:
-                shap_values = explainer(X_test[:, features])
-            shap_values = shap_values.values
         elif isinstance(estimator, SVC):
-            Explainer = shap.KernelExplainer
-            explainer = Explainer(estimator.predict_proba, X_train[:, features], link="logit")
-            if X_test is None:
-                shap_values = explainer.shap_values(X_train[:, features], nsamples=100)
-            else:
-                shap_values = explainer.shap_values(X_test[:, features], nsamples=100)
+            explainer = KernelExplainer(estimator.predict_proba, X_train)
+            shap_values = explainer.shap_values(X, nsamples = 10)
+            shap_values = shap_values.values
             shap_values = np.stack(shap_values, axis = 2)
         else:
             raise ValueError("Estimator object \"{}\" not supported!!!".format(estimator.__class__.__name__)) 
@@ -366,7 +358,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         ranks = features[ranks]
 
         if scorer is not None:
-            score = _score(estimator, X_test[:, features], y_test, scorer)
+            score = _score(estimator, X, y, scorer)
         else:
             score = None
 
