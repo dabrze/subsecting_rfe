@@ -34,12 +34,11 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    # "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
-                                            # n_jobs=1, random_state=SEED),#n_jobs=-1
-    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000, probability=True)  # they suggested KernelExplainer
-    # "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer, n_jobs = -1
-    # "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1) # shap.TreeExplainer NOT WORKING YET TODO https://github.com/slundberg/shap/issues/480
-    # TODO PROBABLY SHAP VERSION WAS THE ISSUE HERE, probatus had fixed shap version.
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
+                                            n_jobs=1, random_state=SEED),#n_jobs=-1
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000, probability=True),  # they suggested KernelExplainer
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer, n_jobs = -1
+    "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1)
 }
 warnings.filterwarnings("ignore")
 if __name__ == '__main__':

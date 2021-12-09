@@ -19,7 +19,7 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection._validation import _safe_split, _score
 from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
-from shap import Explainer, KernelExplainer
+from shap import Explainer, KernelExplainer, LinearExplainer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -231,7 +231,6 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                 = self._get_cv_results(features, cv, X, y, scorer)
 
             while m_step > 0:
-                print(m_step, self.step)
                 mids = [m for m in range(upper - m_step, lower-1, -m_step)]
                 if mids[-1] > lower:
                     mids.append(lower)
@@ -335,18 +334,16 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             X = X_train[:, features]
             y = y_train
         
-        if not isinstance(estimator, SVC):
+        # if not isinstance(estimator, SVC):
+        if isinstance(estimator, SVC) or isinstance(estimator, LogisticRegression):
+            explainer = LinearExplainer(estimator, X_train[:, features])
+            shap_values = explainer(X)
+            shap_values = shap_values.values
+        else:
             explainer = Explainer(estimator)
             shap_values = explainer(X)
             shap_values = shap_values.values
 
-        elif isinstance(estimator, SVC):
-            explainer = KernelExplainer(estimator.predict_proba, X_train)
-            shap_values = explainer.shap_values(X, nsamples = 10)
-            shap_values = shap_values.values
-            shap_values = np.stack(shap_values, axis = 2)
-        else:
-            raise ValueError("Estimator object \"{}\" not supported!!!".format(estimator.__class__.__name__)) 
         shaprank= shap_values.sum(axis = 0)
         if shaprank.ndim > 1:
             shaprank = abs(shaprank).sum(axis = 1)
