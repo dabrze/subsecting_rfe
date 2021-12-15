@@ -17,10 +17,11 @@ from sklearn import metrics
 from sklearn.base import clone
 from joblib import Parallel, delayed
 from sklearn.utils.multiclass import unique_labels
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 from sklearn.metrics._classification import _prf_divide
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import StratifiedKFold
+from sklearn.svm import SVC
 
 
 class Evaluation:
@@ -180,7 +181,7 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=1, timeout=1*60*60,
+             seed, folds=10, n_jobs=-1, timeout=1*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=True)
 
@@ -232,9 +233,11 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 train, test, write_selected, fold, results_file):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
-
+    Scaler = MinMaxScaler
+    if isinstance(classifier, SVC):
+        Scaler= StandardScaler
     if selector is None:
-        clf = make_pipeline(MinMaxScaler(), clone(classifier))
+        clf = make_pipeline(Scaler(), clone(classifier))
     else:
         sel = clone(selector)
         sel.set_params(estimator=clone(classifier), scoring=scorer)
@@ -247,7 +250,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 step = feature_num // srfe_step_num + 1
                 sel.set_params(step=step)
 
-        clf = make_pipeline(MinMaxScaler(), sel)
+        clf = make_pipeline(Scaler(), sel)
 
     start = time.time()
     with warnings.catch_warnings():

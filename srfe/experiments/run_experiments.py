@@ -34,13 +34,14 @@ rfe_selectors = {
 }
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
-    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3, # shap.TreeExplainer 
-                                            n_jobs=1, random_state=SEED),#n_jobs=-1
-    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000, probability=True),  # they suggested KernelExplainer
-    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=1), #shap.LinearExplainer, n_jobs = -1
+    "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
+                                            n_jobs=-1, random_state=SEED),
+    "SVM": SVC(kernel="linear", random_state=SEED, max_iter=1000, probability=True), 
+    "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=-1),
     "GBM": LGBMClassifier(random_state=SEED, n_jobs=1, verbose=-1)
 }
 warnings.filterwarnings("ignore")
+from time import time
 if __name__ == '__main__':
     for file in glob.glob(DATA_PATH):
         filename = os.path.basename(file)
@@ -53,8 +54,14 @@ if __name__ == '__main__':
             for classifier in classifiers:
                 # Subsecting and Fibonacci RFE
                 for selector in srfe_selectors:
+                    time0 = time()
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                              classifiers[classifier], scorers[scorer], X, y,
                              SEED, results_file="Benchmarks.csv")
+
+                    time1 = time()
+                    minutes = int((time1 - time0) / 60)
+                    secs = int( (time1 - time0) - minutes * 60)
+                    print("Processing classifier: {} selector: {} took {} minutes and {} seconds".format(classifier, selector, minutes, secs) )
