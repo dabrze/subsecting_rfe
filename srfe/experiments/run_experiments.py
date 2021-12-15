@@ -7,6 +7,9 @@ import glob
 import warnings
 import scipy.io
 import logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s: %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S')
 
 from sklearn.feature_selection import RFECV
 from lightgbm import LGBMClassifier
@@ -18,13 +21,13 @@ from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
 SEED = 23
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/lung_small.mat")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/small_datasets/smallest/*.mat")
 
 srfe_selectors = {
-    # "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
+    "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=1),
     "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=1),
-    # "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
-    # "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
+    "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=1),
+    "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=1),
 }
 rfe_selectors = {
     "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
