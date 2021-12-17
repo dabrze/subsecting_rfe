@@ -233,9 +233,7 @@ def _single_fit(dataset, selector_name, selector, classifier, scorer, X, y,
                 train, test, write_selected, fold, results_file):
     X_train, X_test = X[train], X[test]
     y_train, y_test = y[train], y[test]
-    Scaler = MinMaxScaler
-    if isinstance(classifier, SVC):
-        Scaler= StandardScaler
+    Scaler = StandardScaler
     if selector is None:
         clf = make_pipeline(Scaler(), clone(classifier))
     else:
