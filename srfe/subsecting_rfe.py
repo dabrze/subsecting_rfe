@@ -18,7 +18,7 @@ from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
 from shap import Explainer, LinearExplainer
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression,
+from sklearn.linear_model import LogisticRegression
 
 
 def _single_fit(rfe, features, X, y, train, test, scorer, fold):
