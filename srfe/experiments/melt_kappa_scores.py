@@ -123,7 +123,7 @@ if __name__ == '__main__':
                                        "Classifier": [classifier],
                                        "Feature selector": [selector],
                                        "Common Features": [np.array2string(common_features, max_line_width=1000000)],
-                                       "Fleiss Kappa": [computeKappa(mat)]})
+                                       "Fleiss Kappa": [computeKappa(mat)]})    
 
                 if melted is not None:
                     result_df = result_df.append(melted)

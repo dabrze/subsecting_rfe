@@ -3,10 +3,10 @@
 # License: MIT
 
 """Bisecting recursive feature elimination for feature ranking"""
-
 import numpy as np
 import math
 from numpy.lib.arraysetops import isin
+import shap
 
 from sklearn.utils import check_X_y, safe_sqr
 from sklearn.utils.metaestimators import if_delegate_has_method
@@ -22,7 +22,7 @@ from sklearn.feature_selection import SelectorMixin
 from shap import Explainer, KernelExplainer, LinearExplainer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from lightgbm import LGBMClassifier
 
 
@@ -106,6 +106,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
     estimator_ : object
         The external estimator fit on the reduced dataset.
     """
+
     def __init__(self, estimator, step=5, method="subsect", cv=None,
                  scoring=None, verbose=0, n_jobs=1):
         self.estimator = estimator
@@ -149,7 +150,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         if self.method == "fibonacci":
             a = 1
             b = n_features
-            interval = (a,b)
+            interval = (a, b)
             fibs = self._get_fibonacci_numbers_for_n(b-a)
             n = len(fibs) - 1
 
@@ -185,7 +186,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                     if x2 not in self.mean_scores_:
                         features_x2 = self._top_features(self.rankings_[b], x2)
                         self.grid_scores_[x2], self.rankings_[x2], \
-                        self.mean_scores_[x2] = \
+                            self.mean_scores_[x2] = \
                             self._get_cv_results(features_x2, cv, X, y, scorer)
                     y2 = self.mean_scores_[x2]
                 else:
@@ -198,7 +199,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                     if x1 not in self.mean_scores_:
                         features_x1 = self._top_features(self.rankings_[b], x1)
                         self.grid_scores_[x1], self.rankings_[x1], \
-                        self.mean_scores_[x1] = \
+                            self.mean_scores_[x1] = \
                             self._get_cv_results(features_x1, cv, X, y, scorer)
                     y1 = self.mean_scores_[x1]
 
@@ -227,7 +228,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             features = self._top_features(self.rankings_[n_features],
                                           n_features)
             self.grid_scores_[upper], self.rankings_[upper], \
-            self.mean_scores_[upper] \
+                self.mean_scores_[upper] \
                 = self._get_cv_results(features, cv, X, y, scorer)
 
             while m_step > 0:
@@ -241,7 +242,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                     features = self._top_features(self.rankings_[previous_mid],
                                                   mid)
                     self.grid_scores_[mid], self.rankings_[mid], \
-                    self.mean_scores_[mid] \
+                        self.mean_scores_[mid] \
                         = self._get_cv_results(features, cv, X, y, scorer)
                     previous_mid = mid
 
@@ -252,7 +253,6 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
                     if self.mean_scores_[feat_num] >= best_score:
                         best_score = self.mean_scores_[feat_num]
                         best = feat_num
-
                 lower = best - m_step if best - m_step > 0 else 1
                 upper = best + m_step if best + m_step < n_features else n_features
                 if upper not in self.rankings_:
@@ -301,7 +301,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             parallel, func = list, _single_fit
         else:
             parallel, func, = Parallel(n_jobs=self.n_jobs), \
-                              delayed(_single_fit)
+                delayed(_single_fit)
 
         mid_scores_and_ranks = parallel(func(self, features, X, y, train,
                                              test, scorer, fold)
@@ -327,32 +327,32 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
         estimator.fit(X_train[:, features], y_train)
 
+
+        if isinstance(estimator, SVC) or isinstance(estimator, LogisticRegression):
+            explainer = LinearExplainer(estimator, X_train[:, features])
+        else:
+            explainer = Explainer(estimator)
+
+        shap_values = explainer.shap_values(X_train[:, features])
+        shap_values = np.asarray(shap_values)
+        shap_values = shap_values.sum(axis = -2)
+
+        if len(shap_values.shape) == 2:
+            ranks = np.argsort(safe_sqr(shap_values).sum(axis = 0))
+        elif len(shap_values.shape) == 1:
+            ranks = np.argsort(safe_sqr(shap_values))
+        else:
+            raise ValueError('shap_values.shape is to long')
+        
+        ranks = np.ravel(ranks)
+        ranks = features[ranks]
+
         if X_test is not None:
             X = X_test[:, features]
             y = y_test
         else:
             X = X_train[:, features]
             y = y_train
-        
-        # if not isinstance(estimator, SVC):
-        if isinstance(estimator, SVC) or isinstance(estimator, LogisticRegression):
-            explainer = LinearExplainer(estimator, X_train[:, features])
-            shap_values = explainer(X)
-            shap_values = shap_values.values
-        else:
-            explainer = Explainer(estimator)
-            shap_values = explainer(X)
-            shap_values = shap_values.values
-
-        shaprank= shap_values.sum(axis = 0)
-        if shaprank.ndim > 1:
-            shaprank = abs(shaprank).sum(axis = 1)
-        shaprank = np.argsort(shaprank)
-        ranks = shaprank
-
-        # for sparse case ranks is matrix
-        ranks = np.ravel(ranks) # array 325 cech (n_features) posortowany tak że na końcu najlepsze TODO insert SHAP instead
-        ranks = features[ranks]
 
         if scorer is not None:
             score = _score(estimator, X, y, scorer)
@@ -379,13 +379,13 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
         if mid+1 not in self.mean_scores_:
             features = self._top_features(self.rankings_[upper], mid+1)
             self.grid_scores_[mid+1], self.rankings_[mid+1], \
-            self.mean_scores_[mid+1] = \
+                self.mean_scores_[mid+1] = \
                 self._get_cv_results(features, cv, X, y, scorer)
 
         if mid not in self.mean_scores_:
             features = self._top_features(self.rankings_[mid+1], mid)
             self.grid_scores_[mid], self.rankings_[mid],\
-            self.mean_scores_[mid] = \
+                self.mean_scores_[mid] = \
                 self._get_cv_results(features, cv, X, y, scorer)
 
         return self.mean_scores_[mid+1] - self.mean_scores_[mid]
@@ -403,7 +403,7 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
 
         for feat_num in steps:
             rerun_features = np.asarray(rerun_rankings[
-                                            previous_feat_num][-feat_num:])
+                previous_feat_num][-feat_num:])
             score, rerun_rankings[feat_num] = self._fit_rank_test(
                 rerun_features, X, y, None, None, None)
             previous_feat_num = feat_num
