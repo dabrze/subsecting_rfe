@@ -4,9 +4,6 @@
 
 """Bisecting recursive feature elimination for feature ranking"""
 import numpy as np
-import math
-from numpy.lib.arraysetops import isin
-import shap
 
 from sklearn.utils import check_X_y, safe_sqr
 from sklearn.utils.metaestimators import if_delegate_has_method
@@ -19,11 +16,9 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection._validation import _safe_split, _score
 from sklearn.metrics import check_scoring
 from sklearn.feature_selection import SelectorMixin
-from shap import Explainer, KernelExplainer, LinearExplainer
-from sklearn.ensemble import RandomForestClassifier
+from shap import Explainer, LinearExplainer
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from lightgbm import LGBMClassifier
+from sklearn.linear_model import LogisticRegression,
 
 
 def _single_fit(rfe, features, X, y, train, test, scorer, fold):
