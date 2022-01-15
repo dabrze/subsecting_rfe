@@ -327,19 +327,21 @@ class SubsectingRFE(BaseEstimator, MetaEstimatorMixin, SelectorMixin):
             explainer = LinearExplainer(estimator, X_train[:, features])
         else:
             explainer = Explainer(estimator)
+        shapped = explainer.shap_values(X_train[:, features][[0], :])
+        shapped = np.asarray(shapped).squeeze(axis = -2)
+        sumi = np.zeros_like(shapped)
+        sumi += shapped
+        for xtrain in X_train[:, features][1:,:]:
+            xtrain=np.expand_dims(xtrain, axis = 0)
+            shapped = np.asarray(explainer.shap_values(xtrain)).squeeze(axis = -2)
+            sumi += shapped
 
-        shap_values = explainer.shap_values(X_train[:, features])
-        shap_values = np.asarray(shap_values)
-        shap_values = shap_values.sum(axis = -2)
-
-        if len(shap_values.shape) == 2:
-            ranks = np.argsort(safe_sqr(shap_values).sum(axis = 0))
-        elif len(shap_values.shape) == 1:
-            ranks = np.argsort(safe_sqr(shap_values))
+        if len(sumi.shape) == 2:
+            ranks = np.argsort(safe_sqr(sumi).sum(axis = 0))
+        elif len(sumi.shape) == 1:
+            ranks = np.argsort(safe_sqr(sumi))
         else:
             raise ValueError('shap_values.shape is to long')
-        
-        ranks = np.ravel(ranks)
         ranks = features[ranks]
 
         if X_test is not None:
