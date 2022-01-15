@@ -17,7 +17,7 @@ from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
 SEED = 23
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/small_datasets/smallest/*.mat")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
 njobs= -1
 
 logging.basicConfig(filename=os.path.join(os.path.dirname(__file__), 'results/logs.txt'),
