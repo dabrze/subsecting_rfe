@@ -8,6 +8,7 @@ import warnings
 import scipy.io
 import logging
 
+from sklearn.feature_selection import RFECV
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -32,6 +33,12 @@ srfe_selectors = {
     "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=njobs),
     "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=njobs),
 }
+rfe_selectors = {
+    "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log-10": RFECV(None, step="custom", cv=5, n_jobs=1),
+    "RFE-log": RFECV(None, step="custom", cv=5, n_jobs=1),
+}
 scorers = {"Accuracy": "accuracy"}
 classifiers = {
     "Random Forest": RandomForestClassifier(n_estimators=30, max_features=0.3,
@@ -40,7 +47,6 @@ classifiers = {
     "Logistic Regression": LogisticRegression(random_state=SEED, n_jobs=njobs),
     "GBM": LGBMClassifier(random_state=SEED, n_jobs=-1, verbose=njobs)
 }
-
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     logging.info('START')
@@ -53,10 +59,25 @@ if __name__ == '__main__':
         for scorer in scorers:
             for classifier in classifiers:
                 # Subsecting and Fibonacci RFE
+                logging.info("Evaluating all features using %s scored with %s",
+                             classifier, scorer)
+                evaluate(filename, "All", None, classifiers[classifier],
+                         scorers[scorer], X, y, SEED,
+                         results_file="Benchmarks.csv", n_jobs=njobs)
+
+                # Subsecting and Fibonacci RFE
                 for selector in srfe_selectors:
                     logging.info("Evaluating %s using %s scored with %s",
                                  selector, classifier, scorer)
                     evaluate(filename, selector, srfe_selectors[selector],
                         classifiers[classifier], scorers[scorer], X, y,
                         SEED, results_file="Benchmarks.csv", n_jobs=njobs)
+
+                # Standard RFE equivalents
+                for selector in rfe_selectors:
+                    logging.info("Evaluating %s using %s scored with %s",
+                                 selector, classifier, scorer)
+                    evaluate(filename, selector, rfe_selectors[selector],
+                             classifiers[classifier], scorers[scorer], X, y,
+                             SEED, results_file="Benchmarks.csv", n_jobs=njobs)
     logging.info('FINISHED')

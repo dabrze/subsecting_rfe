@@ -1,12 +1,5 @@
 # Project description:
 https://arxiv.org/pdf/2007.14920.pdf
-# Branch goal:
-The goal of this branch is to include SHAP feature importance.
- - While performing Fibannaci and k-Subsecting Recursive Feature Elimination, instead of using
-algorithm-specific feature importance use SHAP feature importance
- - The probatus library already has SHAP RFE (https://github.com/ing-bank/probatus); this code
-be used directly, in parts, or serve as inspiration
- - Rerun multidataset experiments with new implementation (first experiment in the paper)
 
  # Branch structure:
   - each new branch should be created based on this dev branch: master/dev/[new_branch_name]

@@ -181,28 +181,28 @@ class DatasetStatistics:
 
 
 def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
-             seed, folds=10, n_jobs=-1, timeout=20*60*60,
+             seed, folds=10, n_jobs=-1, timeout=10*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=True)
-    try:
-        evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
-            delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                                    scorer, X, y, train, test, write_selected,
-                                    fold, results_file)
-            for fold, (train, test) in enumerate(cv.split(X, y)))
-    except Exception as ex:
-        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "error", [1], [0],
-                                None, None)
-        evaluations = [evaluation] * folds
-        logging.warning("Exception: %s" % ex)
-    except:
-        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-                                selector, scorer, timeout, "timeout", [1], [0],
-                                None, None)
-        evaluations = [evaluation] * folds
-        logging.warning("%s probably interrupted after timeout %d seconds" %
-                        (selector_name, timeout))
+    # try:
+    evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
+        delayed(_single_fit)(dataset, selector_name, selector, classifier,
+                                scorer, X, y, train, test, write_selected,
+                                fold, results_file)
+        for fold, (train, test) in enumerate(cv.split(X, y)))
+    # except Exception as ex:
+    #     evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+    #                             selector, scorer, timeout, "error", [1], [0],
+    #                             None, None)
+    #     evaluations = [evaluation] * folds
+    #     logging.warning("Exception: %s" % ex)
+    # except:
+    #     evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+    #                             selector, scorer, timeout, "timeout", [1], [0],
+    #                             None, None)
+    #     evaluations = [evaluation] * folds
+    #     logging.warning("%s probably interrupted after timeout %d seconds" %
+    #                     (selector_name, timeout))
 
     for evaluation in evaluations:
         evaluation.write_to_csv(results_file)
@@ -220,7 +220,6 @@ def _step_num_from_results(dataset, classifier, selector, results_file, fold):
         "RFE-log-10": "10-SRFE",
         "RFE-log": "FRFE"
     }
-
     folds = df[(df["Feature selector"] == selector_mapping[selector]) &
                (df["Dataset"] == dataset) &
                (df["Classifier"].str.replace('\n', ' ').str.replace('\r', '')

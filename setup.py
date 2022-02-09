@@ -6,7 +6,7 @@ KEYWORDS = "Feature Selection Python"
 AUTHOR = "Dariusz Brzezinski"
 AUTHOR_EMAIL = "dariusz.brzezinski@cs.put.poznan.pl"
 URL = "https://github.com/dabrze/subsecting_rfe"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 with open('requirements.txt','r') as req_file:
     requirements = req_file.read().strip().splitlines()
