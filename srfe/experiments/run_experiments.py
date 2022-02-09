@@ -14,11 +14,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
-from srfe.subsecting_rfe import SubsectingRFE
 from evaluation import evaluate
 
 SEED = 23
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/*.mat")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/lung_small.mat")
 njobs= -1
 
 logging.basicConfig(filename=os.path.join(os.path.dirname(__file__), 'results/logs.txt'),
@@ -26,13 +25,6 @@ logging.basicConfig(filename=os.path.join(os.path.dirname(__file__), 'results/lo
                     level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S')
-
-srfe_selectors = {
-    "3-SRFE": SubsectingRFE(None, method="subsect", step=3, cv=5, n_jobs=njobs),
-    "5-SRFE": SubsectingRFE(None, method="subsect", step=5, cv=5, n_jobs=njobs),
-    "10-SRFE": SubsectingRFE(None, method="subsect", step=10, cv=5, n_jobs=njobs),
-    "FRFE": SubsectingRFE(None, method="fibonacci", cv=5, n_jobs=njobs),
-}
 rfe_selectors = {
     "RFE-log-3": RFECV(None, step="custom", cv=5, n_jobs=1),
     "RFE-log-5": RFECV(None, step="custom", cv=5, n_jobs=1),
@@ -64,14 +56,6 @@ if __name__ == '__main__':
                 evaluate(filename, "All", None, classifiers[classifier],
                          scorers[scorer], X, y, SEED,
                          results_file="Benchmarks.csv", n_jobs=njobs)
-
-                # Subsecting and Fibonacci RFE
-                for selector in srfe_selectors:
-                    logging.info("Evaluating %s using %s scored with %s",
-                                 selector, classifier, scorer)
-                    evaluate(filename, selector, srfe_selectors[selector],
-                        classifiers[classifier], scorers[scorer], X, y,
-                        SEED, results_file="Benchmarks.csv", n_jobs=njobs)
 
                 # Standard RFE equivalents
                 for selector in rfe_selectors:

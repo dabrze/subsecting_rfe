@@ -184,25 +184,25 @@ def evaluate(dataset, selector_name, selector, classifier, scorer, X, y,
              seed, folds=10, n_jobs=-1, timeout=10*60*60,
              results_file="ExperimentResults.csv", write_selected=False):
     cv = StratifiedKFold(n_splits=folds, random_state=seed, shuffle=True)
-    # try:
-    evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
-        delayed(_single_fit)(dataset, selector_name, selector, classifier,
-                                scorer, X, y, train, test, write_selected,
-                                fold, results_file)
-        for fold, (train, test) in enumerate(cv.split(X, y)))
-    # except Exception as ex:
-    #     evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-    #                             selector, scorer, timeout, "error", [1], [0],
-    #                             None, None)
-    #     evaluations = [evaluation] * folds
-    #     logging.warning("Exception: %s" % ex)
-    # except:
-    #     evaluation = Evaluation(dataset, selector_name, X, y, classifier,
-    #                             selector, scorer, timeout, "timeout", [1], [0],
-    #                             None, None)
-    #     evaluations = [evaluation] * folds
-    #     logging.warning("%s probably interrupted after timeout %d seconds" %
-    #                     (selector_name, timeout))
+    try:
+        evaluations = Parallel(n_jobs=n_jobs, timeout=timeout)(
+            delayed(_single_fit)(dataset, selector_name, selector, classifier,
+                                    scorer, X, y, train, test, write_selected,
+                                    fold, results_file)
+            for fold, (train, test) in enumerate(cv.split(X, y)))
+    except Exception as ex:
+        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+                                selector, scorer, timeout, "error", [1], [0],
+                                None, None)
+        evaluations = [evaluation] * folds
+        logging.warning("Exception: %s" % ex)
+    except:
+        evaluation = Evaluation(dataset, selector_name, X, y, classifier,
+                                selector, scorer, timeout, "timeout", [1], [0],
+                                None, None)
+        evaluations = [evaluation] * folds
+        logging.warning("%s probably interrupted after timeout %d seconds" %
+                        (selector_name, timeout))
 
     for evaluation in evaluations:
         evaluation.write_to_csv(results_file)
@@ -212,7 +212,7 @@ def _step_num_from_results(dataset, classifier, selector, results_file, fold):
     clf_str = classifier.__repr__().replace(",", ";").replace("\n", " ").\
         replace("\r", "")
     file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                             "results", results_file)
+                             "results", results_file.split('.')[0] + 'Old.csv')
     df = pd.read_csv(file_path)
     selector_mapping = {
         "RFE-log-3": "3-SRFE",
